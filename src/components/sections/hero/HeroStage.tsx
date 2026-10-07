@@ -8,6 +8,14 @@ import { useIsMobile, usePrefersReducedMotion } from "@/hooks/useMediaQuery";
 import { useSceneState } from "@/hooks/useSceneState";
 import { cn } from "@/lib/cn";
 
+/**
+ * Soft fade on all four edges. (A radial mask showed as a visible circle — a "porthole" — once
+ * the camera pushes in and the scene fills the canvas.)
+ */
+const EDGE_FADE =
+  "linear-gradient(to right, transparent, black 14%, black 86%, transparent), linear-gradient(to bottom, transparent, black 10%, black 88%, transparent)";
+const STAGE_MASK = { maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE, maskComposite: "intersect", WebkitMaskComposite: "source-in" } as const;
+
 // three + R3F + scene code live in their own chunk, fetched on the client only.
 const HeroCanvas = dynamic(() => import("@/components/three/HeroCanvas"), { ssr: false });
 
@@ -42,7 +50,7 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
       {/* Larger than the column on desktop so glow and motion never hit a hard edge */}
       <div
         className="pointer-events-none absolute inset-0 lg:-inset-x-[22%] lg:-inset-y-[14%]"
-        style={{ maskImage: "radial-gradient(closest-side, black 86%, transparent)" }}
+        style={STAGE_MASK}
       >
         <CanvasErrorBoundary>
           <HeroCanvas mobile={mobile} reducedMotion={reducedMotion} active={inView} />

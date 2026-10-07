@@ -34,8 +34,8 @@ export function Cluster({ mobile }: Props) {
 
   const reported = useRef(false);
 
-  useFrame((state) => {
-    const t = clock.time(state.clock.elapsedTime);
+  useFrame(() => {
+    const t = clock.time();
     layout.nodes.forEach((node, i) => {
       const { object, core, coreBase } = instances[i];
       object.visible = t >= node.delay;

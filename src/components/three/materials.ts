@@ -1,4 +1,5 @@
 import { Mesh, MeshStandardMaterial, type Material, type Object3D } from "three";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 
 /** Emissive strength (as authored in Blender) above which a material counts as neon. */
 const NEON_THRESHOLD = 1.5;
@@ -13,13 +14,14 @@ export const isNeon = (m: Material): m is MeshStandardMaterial =>
   m instanceof MeshStandardMaterial && (m.userData.neon === true || m.emissiveIntensity >= NEON_THRESHOLD);
 
 /**
- * Deep-clones a loaded glTF scene AND every material on it, so per-instance changes
+ * Deep-clones a loaded glTF scene (SkeletonUtils, so skinned meshes stay bound to their own
+ * bones) AND every material on it, so per-instance changes
  * (flash, hover, Chaos Monkey recolor) never leak into other instances. Neon materials
  * skip tone mapping so cyan/violet stay saturated; bloom provides the glow. `neonBoost`
  * scales this instance's neon relative to the standard level (e.g. > 1 for the minis).
  */
 export function cloneWithMaterials<T extends Object3D>(source: T, neonBoost = 1): T {
-  const root = source.clone(true) as T;
+  const root = cloneSkinned(source) as T;
   const cache = new Map<Material, Material>();
   root.traverse((obj) => {
     if (!(obj instanceof Mesh)) return;

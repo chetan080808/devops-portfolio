@@ -9,22 +9,29 @@ export const power2InOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2
 /** Normalized 0–1 progress of a tween that starts at `start` and lasts `duration` (seconds). */
 export const span = (t: number, start: number, duration: number) => clamp01((t - start) / duration);
 
+/** Longest step the intro advances in one frame (s). */
+const MAX_STEP = 1 / 20;
+
 /**
- * Shared clock for the hero intro. Starts on the first frame after the boot overlay is gone;
- * `skip` (reduced motion) jumps straight to the settled state.
+ * Shared clock for the hero intro. It advances only on rendered frames (ticked once per frame
+ * by IntroTicker), capped per frame, so when rendering pauses — hero scrolled out of view,
+ * background tab — the intro resumes where it left off instead of jumping ahead.
+ * Starts after the boot overlay is gone; `skip` (reduced motion) renders the settled state.
  */
 export class IntroClock {
-  private start: number | null = null;
+  private elapsed = 0;
+  private started = false;
   constructor(private readonly skip: boolean) {}
 
-  /** Seconds since the intro started; −1 while the boot overlay is still up. */
-  time(elapsed: number): number {
+  tick(delta: number) {
+    if (!this.started) this.started = sceneStore.get().bootDone;
+    if (this.started) this.elapsed += Math.min(delta, MAX_STEP);
+  }
+
+  /** Seconds of intro played so far; −1 while the boot overlay is still up. */
+  time(): number {
     if (this.skip) return 1e4;
-    if (this.start === null) {
-      if (!sceneStore.get().bootDone) return -1;
-      this.start = elapsed;
-    }
-    return elapsed - this.start;
+    return this.started ? this.elapsed : -1;
   }
 }
 

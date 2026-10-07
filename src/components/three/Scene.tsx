@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useThree } from "@react-three/fiber";
-import { Grid, useGLTF } from "@react-three/drei";
-import { DRACO_PATH, MODELS } from "./assets";
+import { useMemo } from "react";
+import { Grid } from "@react-three/drei";
 import { Bloom } from "./Bloom";
+import { CameraRig } from "./CameraRig";
 import { Cluster } from "./cluster/Cluster";
 import { HelmWheel } from "./HelmWheel";
+import { HeroContainer } from "./hero/HeroContainer";
+import { Whale } from "./hero/Whale";
 import { IntroClock, IntroContext } from "./intro";
+import { IntroTicker } from "./IntroTicker";
 import { Lighting } from "./Lighting";
 
 interface Props {
@@ -15,21 +17,17 @@ interface Props {
   reducedMotion: boolean;
 }
 
-const LOOK_AT: [number, number, number] = [0, -0.25, 0];
-
-/** Hero scene: cluster + helm wheel (3b). Container + whale land in 3c. */
+/**
+ * Hero scene. Every model component calls useGLTF itself (one call per URL), so this whole tree
+ * suspends until all models are parsed and the boot overlay covers the full load.
+ */
 export function Scene({ mobile, reducedMotion }: Props) {
-  // One call per URL: an array call is cached under its own key and would re-download everything.
-  // Suspends until every model is parsed, so the boot overlay covers the whole load.
-  useGLTF(MODELS.container, DRACO_PATH);
-  useGLTF(MODELS.whale, DRACO_PATH);
-
   const clock = useMemo(() => new IntroClock(reducedMotion), [reducedMotion]);
-  const camera = useThree((s) => s.camera);
-  useEffect(() => camera.lookAt(...LOOK_AT), [camera]);
 
   return (
     <IntroContext value={clock}>
+      <IntroTicker />
+      <CameraRig />
       <Lighting />
       <Grid
         position={[0, -0.04, 0]}
@@ -46,6 +44,8 @@ export function Scene({ mobile, reducedMotion }: Props) {
       />
       <Cluster mobile={mobile} />
       <HelmWheel />
+      <HeroContainer />
+      <Whale />
       <Bloom strength={mobile ? 0.26 : 0.32} />
     </IntroContext>
   );

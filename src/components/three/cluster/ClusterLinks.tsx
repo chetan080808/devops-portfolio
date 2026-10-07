@@ -44,9 +44,9 @@ export function ClusterLinks({ links }: { links: LinkSpec[] }) {
     });
   }, [links]);
 
-  useFrame((state) => {
+  useFrame(() => {
     if (settled.current || !beams.current || !sparks.current) return;
-    const t = clock.time(state.clock.elapsedTime);
+    const t = clock.time();
     let allDone = true;
 
     links.forEach((link, i) => {

@@ -11,6 +11,8 @@ export function Lighting() {
     <>
       <ambientLight intensity={0.45} color="#9a94c7" />
       <directionalLight position={[4, 7, 5]} intensity={1.8} color="#e2e4ff" />
+      {/* Cool rim from behind/above: separates dark silhouettes (the whale) from the page. */}
+      <directionalLight position={[-3, 6, -7]} intensity={2.2} color="#9fb4ff" />
       <pointLight position={[-5, 2.5, -2]} intensity={18} distance={14} color="#8b5cf6" />
       <pointLight position={[5, 1.5, -3]} intensity={6} distance={14} color="#22d3ee" />
       <Environment resolution={64} frames={1}>
