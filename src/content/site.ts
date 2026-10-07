@@ -33,6 +33,17 @@ export const site: SiteContent = {
     ],
   },
 
+  boot: {
+    command: "kubectl apply -f portfolio.yaml",
+    lines: [
+      "namespace/portfolio created",
+      "configmap/site-content created",
+      "deployment.apps/portfolio created",
+      "service/portfolio created",
+    ],
+    readyLine: "pod/portfolio-0 1/1 Running",
+  },
+
   nav: [
     { label: "deployments", href: "#deployments" },
     { label: "pipeline", href: "#pipeline" },

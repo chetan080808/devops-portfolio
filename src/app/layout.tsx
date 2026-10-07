@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { site } from "@/content/site";
+import { BootGate } from "@/components/boot/BootGate";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -40,8 +41,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-dvh overflow-x-hidden">{children}</body>
+    // data-boot is set by BootGate before first paint
+    <html lang="en" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body className="min-h-dvh overflow-x-hidden [html[data-boot=run]_&]:overflow-hidden">
+        <BootGate />
+        {children}
+      </body>
     </html>
   );
 }

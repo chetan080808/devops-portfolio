@@ -2,6 +2,7 @@ import { site } from "@/content/site";
 import { ButtonLink } from "@/components/ui/Button";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { HexCluster } from "./HexCluster";
+import { HeroStage } from "./HeroStage";
 
 export function Hero() {
   const { profile, hero } = site;
@@ -48,13 +49,16 @@ export function Hero() {
           </dl>
         </div>
 
-        {/* 3D stage — replaced by the R3F scene in Phase 3 */}
-        <div className="relative mx-auto aspect-square w-full max-w-[34rem]">
-          <HexCluster />
-          <p className="absolute bottom-2 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] whitespace-nowrap text-faint">
-            [ OK ] 13/13 nodes ready
-          </p>
-        </div>
+        <HeroStage
+          fallback={
+            <>
+              <HexCluster />
+              <p className="absolute bottom-2 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] whitespace-nowrap text-faint">
+                [ OK ] 13/13 nodes ready
+              </p>
+            </>
+          }
+        />
       </div>
 
       <a

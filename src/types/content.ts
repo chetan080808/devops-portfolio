@@ -113,6 +113,14 @@ export interface SiteContent {
     repoUrl: string;
   };
   profile: Profile;
+  /** Terminal intro shown once per session before the hero */
+  boot: {
+    command: string;
+    /** Printed one by one while assets download */
+    lines: string[];
+    /** Printed when the 3D scene is ready */
+    readyLine: string;
+  };
   nav: Link[];
   hero: {
     eyebrow: string;

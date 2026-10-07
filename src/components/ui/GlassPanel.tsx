@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, ElementType } from "react";
+import { createElement, type ComponentPropsWithoutRef, type ElementType } from "react";
 import { cn } from "@/lib/cn";
 
 type GlassPanelProps<T extends ElementType> = {
@@ -13,6 +13,6 @@ export function GlassPanel<T extends ElementType = "div">({
   className,
   ...props
 }: GlassPanelProps<T>) {
-  const Tag = as ?? "div";
-  return <Tag className={cn("glass rounded-2xl", glow && "glow-edge", className)} {...props} />;
+  // createElement instead of JSX: TS can't relate rest props to a generic tag in JSX. Callers stay typed.
+  return createElement(as ?? "div", { ...props, className: cn("glass rounded-2xl", glow && "glow-edge", className) });
 }
