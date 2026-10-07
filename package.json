@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "models": "node scripts/compress-models.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

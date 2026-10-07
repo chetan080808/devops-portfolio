@@ -31,6 +31,21 @@ const edges = points.flatMap((p, i) =>
     .map((q) => ({ a: p, b: q })),
 );
 
+// 8 spokes from the hub through the rim (r=19), ending in handles with knobs at r≈29.
+const HELM_SPOKES = Array.from({ length: 8 }, (_, i) => {
+  const a = (Math.PI / 4) * i - Math.PI / 2;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return {
+    x1: (c * 4.5).toFixed(1),
+    y1: (s * 4.5).toFixed(1),
+    x2: (c * 27).toFixed(1),
+    y2: (s * 27).toFixed(1),
+    hx: (c * 29).toFixed(1),
+    hy: (s * 29).toFixed(1),
+  };
+});
+
 export function HexCluster() {
   return (
     <svg
@@ -80,23 +95,17 @@ export function HexCluster() {
         ))}
       </g>
 
-      {/* Generic seven-spoke helm wheel at the centre */}
-      <g stroke="#22d3ee" strokeWidth="1.4" fill="none" filter="url(#hc-glow)">
-        <circle r="20" />
-        <circle r="6" />
-        {Array.from({ length: 7 }, (_, i) => {
-          const a = ((Math.PI * 2) / 7) * i - Math.PI / 2;
-          return (
-            <line
-              key={i}
-              x1={(Math.cos(a) * 6).toFixed(1)}
-              y1={(Math.sin(a) * 6).toFixed(1)}
-              x2={(Math.cos(a) * 27).toFixed(1)}
-              y2={(Math.sin(a) * 27).toFixed(1)}
-              strokeLinecap="round"
-            />
-          );
-        })}
+      {/* Generic eight-spoke ship's helm wheel (matches helm_wheel.glb) */}
+      <g filter="url(#hc-glow)">
+        {HELM_SPOKES.map(({ x1, y1, x2, y2, hx, hy }, i) => (
+          <g key={i}>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7d89a3" strokeWidth="1.6" strokeLinecap="round" />
+            <circle cx={hx} cy={hy} r="2" fill="#8b5cf6" />
+          </g>
+        ))}
+        <circle r="19" fill="none" stroke="#22d3ee" strokeWidth="2.4" />
+        <circle r="11" fill="none" stroke="#7d89a3" strokeWidth="0.8" strokeOpacity="0.6" />
+        <circle r="4.5" fill="#0a0e18" stroke="#22d3ee" strokeWidth="1.4" />
       </g>
     </svg>
   );

@@ -17,6 +17,9 @@ next-env.d.ts
 # blender source + backups (large binaries; exported .glb in public/models/ IS committed)
 *.blend
 *.blend1
+blender/renders/
+blender/exports/
+blender/source/
 
 
 # misc
