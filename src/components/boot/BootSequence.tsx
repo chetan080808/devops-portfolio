@@ -6,7 +6,8 @@ import { cn } from "@/lib/cn";
 import { loadProgress, sceneStore } from "@/lib/sceneStore";
 import { useSceneState } from "@/hooks/useSceneState";
 import { BOOT_SEEN_KEY } from "./BootGate";
-import { EXIT_MS, SKIP_EXIT_MS, useBootTimeline, type LogTone } from "./useBootTimeline";
+import type { CSSProperties } from "react";
+import { CHAR_MS, EXIT_MS, SKIP_EXIT_MS, TYPE_DELAY_MS, useBootTimeline, type LogTone } from "./useBootTimeline";
 
 const noopSubscribe = () => () => {};
 const readGate = () => document.documentElement.dataset.boot ?? "skip";
@@ -24,7 +25,7 @@ export function BootSequence() {
   const [gone, setGone] = useState(false);
   const active = gate === "run" && !gone;
 
-  const { command, typed, log, pulling, leaving, skip } = useBootTimeline(active, () => {
+  const { command, log, pulling, leaving, skip } = useBootTimeline(active, () => {
     sceneStore.set({ bootDone: true });
     try {
       sessionStorage.setItem(BOOT_SEEN_KEY, "1");
@@ -76,19 +77,38 @@ export function BootSequence() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_45%_at_50%_45%,rgb(34_211_238/0.08),transparent_70%)]"
       />
 
-      <div className="glass glow-edge relative w-full max-w-xl overflow-hidden rounded-xl">
-        <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
-          <span className="size-2.5 rounded-full bg-danger/70" />
-          <span className="size-2.5 rounded-full bg-warning/70" />
-          <span className="size-2.5 rounded-full bg-success/70" />
-          <span className="ml-3 font-mono text-[0.7rem] text-faint">{site.profile.handle}@cluster: ~/portfolio</span>
+      <div className="glass glow-edge relative w-full max-w-2xl overflow-hidden rounded-2xl">
+        <div className="flex items-center gap-2 border-b border-line px-5 py-3">
+          <span className="size-3 rounded-full bg-danger/70" />
+          <span className="size-3 rounded-full bg-warning/70" />
+          <span className="size-3 rounded-full bg-success/70" />
+          <span className="ml-3 font-mono text-xs text-faint">{site.profile.handle}@cluster: ~/portfolio</span>
         </div>
 
-        <div aria-hidden="true" className="min-h-[12.5rem] px-4 py-4 font-mono text-[0.8rem] leading-6 sm:text-[0.85rem]">
+        {/* Fixed height for all 7 lines so the panel never grows while the log prints */}
+        <div aria-hidden="true" className="h-[13.25rem] px-5 py-4 font-mono text-[0.85rem] leading-7 sm:h-[13.75rem] sm:text-[0.95rem]">
           <p className="text-fg">
             <span className="text-success">➜</span> <span className="text-cyan">~/portfolio</span>{" "}
-            <span className="text-faint">$</span> {command.slice(0, typed)}
-            {typed < command.length && <span className="ml-px inline-block h-4 w-2 translate-y-0.5 animate-blink bg-cyan" />}
+            <span className="text-faint">$</span>{" "}
+            {/* Typed by CSS from first paint, so it never waits for hydration */}
+            <span
+              className="inline-block animate-boot-type overflow-hidden align-bottom whitespace-nowrap"
+              style={
+                {
+                  "--chars": command.length,
+                  "--type-ms": `${command.length * CHAR_MS}ms`,
+                  "--type-delay": `${TYPE_DELAY_MS}ms`,
+                } as CSSProperties
+              }
+            >
+              {command}
+            </span>
+            <span
+              className="ml-px inline-block h-[1.1em] w-[0.55em] translate-y-[0.15em] animate-boot-caret bg-cyan"
+              style={
+                { "--type-ms": `${command.length * CHAR_MS}ms`, "--type-delay": `${TYPE_DELAY_MS}ms` } as CSSProperties
+              }
+            />
           </p>
           {log.map((line, i) => (
             <p key={i} className={toneClass[line.tone]}>
@@ -128,8 +148,8 @@ function PullLine() {
 function ProgressBar() {
   const pct = Math.round(useSceneState(loadProgress) * 100);
   return (
-    <div className="border-t border-line px-4 py-3">
-      <div className="mb-2 flex justify-between font-mono text-[0.68rem] text-faint">
+    <div className="border-t border-line px-5 py-3.5">
+      <div className="mb-2 flex justify-between font-mono text-xs text-faint">
         <span>rollout status</span>
         <span className={pct === 100 ? "text-success" : "text-cyan"}>{pct}%</span>
       </div>

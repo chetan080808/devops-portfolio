@@ -104,6 +104,32 @@
   color: var(--color-muted);
 }
 
+/* ───────────── Boot typing ─────────────
+   Pure CSS so the command types from first paint, before hydration. The element sets
+   --chars, --type-ms and --type-delay. (Not @theme tokens: those resolve var() on :root,
+   where these per-element variables don't exist.) */
+@keyframes boot-type {
+  from {
+    width: 0;
+  }
+  to {
+    width: calc(var(--chars) * 1ch);
+  }
+}
+@keyframes boot-caret-off {
+  to {
+    opacity: 0;
+  }
+}
+@utility animate-boot-type {
+  animation: boot-type var(--type-ms) steps(var(--chars), end) var(--type-delay) both;
+}
+@utility animate-boot-caret {
+  animation:
+    blink 1.1s steps(2, start) infinite,
+    boot-caret-off 1ms linear calc(var(--type-delay) + var(--type-ms)) forwards;
+}
+
 /* ───────────── Reduced motion ───────────── */
 @media (prefers-reduced-motion: reduce) {
   html {

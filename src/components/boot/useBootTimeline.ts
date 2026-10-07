@@ -10,23 +10,25 @@ export interface LogLine {
   tone: LogTone;
 }
 
-const START_DELAY = 150;
-const CHAR_MS = 24;
+/** Typing is a CSS animation (BootSequence) so it starts at first paint, not at hydration. */
+export const TYPE_DELAY_MS = 120;
+export const CHAR_MS = 22;
 const LINE_MS = 130;
+/** Lines already due when React hydrates are printed in quick succession instead of all at once. */
+const CATCH_UP_MS = 55;
 const READY_HOLD = 380;
-/** Stop waiting for assets after this; the scene fades in on its own once ready. */
+/** Measured from first paint: stop waiting for assets; the scene fades in on its own once ready. */
 const CAP_MS = 2900;
 export const EXIT_MS = 450;
 export const SKIP_EXIT_MS = 220;
 
 /**
- * Drives the boot terminal: types the command, prints log lines, then waits for the real
- * scene-ready signal (or the time cap) before exiting. `active` is false when the gate
- * script decided to skip the intro.
+ * Drives the boot log on a clock that starts at first paint (set by BootGate), so loading,
+ * typing and log lines all run in parallel with hydration. Exits on the real scene-ready
+ * signal or at the time cap. `active` is false when the gate skipped the intro.
  */
 export function useBootTimeline(active: boolean, onLeave: () => void) {
   const { command, lines, readyLine } = site.boot;
-  const [typed, setTyped] = useState(0);
   const [log, setLog] = useState<LogLine[]>([]);
   const [pulling, setPulling] = useState(false);
   const [leaving, setLeaving] = useState<false | "done" | "skip">(false);
@@ -45,17 +47,25 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
 
   useEffect(() => {
     if (!active) return;
+    const origin = window.__pfBootT0 ?? performance.now();
+    const elapsed = () => performance.now() - origin;
     const timers: number[] = [];
-    const after = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+    const after = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, Math.max(0, ms)));
     const push = (text: string, tone: LogTone = "plain") => setLog((l) => [...l, { text, tone }]);
-    const started = performance.now();
     let finishing = false;
 
-    for (let i = 1; i <= command.length; i++) after(START_DELAY + i * CHAR_MS, () => setTyped(i));
-    const linesAt = START_DELAY + command.length * CHAR_MS + 160;
-    lines.forEach((line, i) => after(linesAt + i * LINE_MS, () => push(line)));
-    const pullAt = linesAt + lines.length * LINE_MS;
-    after(pullAt, () => setPulling(true));
+    // Absolute schedule (ms after first paint); anything overdue catches up quickly.
+    const now = elapsed();
+    const linesAt = TYPE_DELAY_MS + command.length * CHAR_MS + 160;
+    let next = 0;
+    const schedule = (at: number, fn: () => void) => {
+      const delay = Math.max(at - now, next);
+      next = delay + CATCH_UP_MS;
+      after(delay, fn);
+      return delay;
+    };
+    lines.forEach((line, i) => schedule(linesAt + i * LINE_MS, () => push(line)));
+    const pullDelay = schedule(linesAt + lines.length * LINE_MS, () => setPulling(true));
 
     const finish = (outcome: "ready" | "failed" | "timeout") => {
       if (finishing || leavingRef.current) return;
@@ -73,15 +83,19 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
       after(READY_HOLD, () => leave("done"));
     };
 
+    let pullingShown = false;
     const check = () => {
-      if (performance.now() - started < pullAt) return;
+      if (!pullingShown) return;
       const s = sceneStore.get();
       if (s.sceneReady) finish("ready");
       else if (s.failed) finish("failed");
     };
     const unsubscribe = sceneStore.subscribe(check);
-    after(pullAt, check);
-    after(CAP_MS, () => finish("timeout"));
+    after(pullDelay + 1, () => {
+      pullingShown = true;
+      check();
+    });
+    after(Math.max(CAP_MS - now, pullDelay + 1), () => finish("timeout"));
 
     return () => {
       timers.forEach(clearTimeout);
@@ -89,5 +103,5 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
     };
   }, [active, command, lines, readyLine, leave]);
 
-  return { command, typed, log, pulling, leaving, skip: () => leave("skip") };
+  return { command, log, pulling, leaving, skip: () => leave("skip") };
 }

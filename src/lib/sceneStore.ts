@@ -15,6 +15,8 @@ export interface SceneState {
   failed: boolean;
   /** Boot overlay finished or skipped; the hero intro may start */
   bootDone: boolean;
+  /** Hero intro: every node landed and linked */
+  clusterReady: boolean;
   /** 0–1, never decreases (the Draco decoder joins the queue mid-load) */
   progress: number;
 }
@@ -26,6 +28,7 @@ let state: SceneState = {
   sceneReady: false,
   failed: false,
   bootDone: false,
+  clusterReady: false,
   progress: 0,
 };
 

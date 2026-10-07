@@ -1,3 +1,10 @@
+declare global {
+  interface Window {
+    /** performance.now() when the gate ran (≈ first paint); the boot timeline is measured from it. */
+    __pfBootT0?: number;
+  }
+}
+
 /** sessionStorage key: set once the intro has been skipped or watched this session. */
 export const BOOT_SEEN_KEY = "pf-boot-seen";
 
@@ -11,6 +18,7 @@ var force=/[?&]boot(=|&|$)/.test(location.search);
 var calm=matchMedia("(prefers-reduced-motion: reduce)").matches;
 var seen=sessionStorage.getItem("${BOOT_SEEN_KEY}");
 d.dataset.boot=force||(!calm&&!seen)?"run":"skip";
+window.__pfBootT0=performance.now();
 }catch(e){d.dataset.boot="skip"}})()`;
 
 export function BootGate() {

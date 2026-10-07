@@ -49,16 +49,7 @@ export function Hero() {
           </dl>
         </div>
 
-        <HeroStage
-          fallback={
-            <>
-              <HexCluster />
-              <p className="absolute bottom-2 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] whitespace-nowrap text-faint">
-                [ OK ] 13/13 nodes ready
-              </p>
-            </>
-          }
-        />
+        <HeroStage fallback={<HexCluster />} />
       </div>
 
       <a
