@@ -1,22 +1,26 @@
 # dependencies
-/node_modules
+node_modules/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 /build
 next-env.d.ts
 *.tsbuildinfo
 
-# env
+# env — never commit secrets or API keys
+.env
+.env*.local
 .env*
 !.env.example
+
+# blender source + backups (large binaries; exported .glb in public/models/ IS committed)
+*.blend
+*.blend1
+
 
 # misc
 .DS_Store
 *.pem
 npm-debug.log*
 .vercel
-
-# blender autosaves
-*.blend1
