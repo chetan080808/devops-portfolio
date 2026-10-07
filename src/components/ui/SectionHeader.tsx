@@ -11,7 +11,7 @@ export function SectionHeader({ id, index, label, title, children }: {
   children?: ReactNode;
 }) {
   return (
-    <header className="mb-12 max-w-2xl md:mb-16">
+    <header className="mb-10 max-w-2xl md:mb-12">
       <p className="label-mono mb-4 flex items-center gap-3">
         <span className="text-cyan">{index}</span>
         <span className="h-px w-8 bg-line-strong" aria-hidden="true" />

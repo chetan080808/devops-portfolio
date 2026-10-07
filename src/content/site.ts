@@ -45,9 +45,9 @@ export const site: SiteContent = {
     primaryCta: { label: "View Deployments", href: "#deployments" },
     secondaryCta: { label: "Download Resume", href: "/resume.pdf" },
     stats: [
-      // TODO: real numbers
-      { label: "deployments", value: "3+" },
-      { label: "pipelines", value: "10+" },
+      // TODO: fill with real, defensible values (e.g. "3"). null renders "—".
+      { label: "deployments", value: null }, // TODO
+      { label: "pipelines", value: null }, // TODO
       { label: "cloud", value: "AWS" },
     ],
   },
@@ -71,8 +71,8 @@ export const site: SiteContent = {
         ],
         role: "TODO: your role (e.g. sole engineer — design, IaC, pipeline, deployment).",
         results: [
-          "TODO: e.g. deploy time from ~30 min to ~4 min",
-          "TODO: e.g. zero critical CVEs shipped thanks to Trivy gate",
+          "TODO: a measurable result (e.g. deploy time before → after)",
+          "TODO: a security outcome of the Trivy scan gate",
         ],
       },
       links: [
@@ -146,38 +146,46 @@ export const site: SiteContent = {
       period: "Now",
       summary: "Observing, iterating, leveling up.",
       highlights: ["TODO: what you're learning or building next"],
+      current: true,
     },
   ],
 
   dashboard: [
-    // TODO: tune values to reflect your real experience — keep them honest
-    {
-      kind: "sparkline",
-      id: "k8s",
-      title: "Kubernetes",
-      value: 99.9,
-      suffix: "%",
-      decimals: 1,
-      caption: "uptime · deployments, services, HPA, ingress",
-      accent: "cyan",
-      series: [62, 70, 66, 74, 80, 78, 85, 88, 86, 92, 95, 97],
-    },
+    // Only claims you can back up. Numeric values stay `null` (renders "No data")
+    // until you fill in a real number. Layout: 4 columns, `wide` panels take 2.
     {
       kind: "stat",
       id: "pipelines",
       title: "Pipelines shipped",
-      value: 12,
-      suffix: "+",
+      value: null, // TODO: real count of CI/CD pipelines you've built
       caption: "GitHub Actions · build → scan → deploy",
       accent: "success",
     },
     {
-      kind: "gauge",
+      kind: "sparkline",
+      id: "cicd",
+      title: "Build → deploy time",
+      wide: true,
+      value: null, // TODO: real median minutes, e.g. 4 (and set suffix: " min")
+      caption: "median pipeline duration",
+      accent: "violet",
+      series: null, // TODO: real durations normalized 0–100, oldest → newest
+    },
+    {
+      kind: "text",
       id: "docker",
       title: "Docker",
-      value: 90,
-      caption: "multi-stage builds · image hardening",
+      headline: "Containerized apps",
+      caption: "PHP + MySQL services packaged as images", // TODO: add e.g. multi-stage builds if true
       accent: "violet",
+    },
+    {
+      kind: "text",
+      id: "k8s",
+      title: "Kubernetes",
+      headline: "Self-hosted on EC2",
+      caption: "Car Rental Portal runs on a cluster on AWS EC2", // TODO: add the objects you've used
+      accent: "cyan",
     },
     {
       kind: "list",
@@ -185,37 +193,27 @@ export const site: SiteContent = {
       title: "Cloud: AWS",
       wide: true,
       items: [
-        { label: "EC2", detail: "compute", accent: "cyan" },
-        { label: "S3", detail: "storage", accent: "cyan" },
-        { label: "IAM", detail: "access", accent: "violet" },
-        { label: "VPC", detail: "network", accent: "violet" },
+        { label: "EC2", detail: "Kubernetes nodes", accent: "cyan" },
+        { label: "TODO", detail: "add AWS services you've used", accent: "warning" },
+        { label: "TODO", detail: "e.g. S3 / IAM / VPC", accent: "warning" },
+        { label: "TODO", detail: "ingestion pipeline services", accent: "warning" },
       ],
     },
     {
-      kind: "sparkline",
-      id: "cicd",
-      title: "CI/CD throughput",
-      value: 4,
-      suffix: " min",
-      caption: "median build → deploy",
-      accent: "violet",
-      series: [90, 84, 80, 72, 70, 58, 52, 44, 40, 30, 26, 22],
-    },
-    {
-      kind: "gauge",
+      kind: "text",
       id: "security",
       title: "Supply-chain security",
-      value: 85,
-      caption: "Trivy scans · least-privilege IAM",
+      headline: "Trivy image scanning",
+      caption: "vulnerability scan in every pipeline before push",
       accent: "success",
     },
     {
       kind: "stat",
-      id: "cve",
-      title: "Critical CVEs shipped",
-      value: 0,
-      caption: "image scanning gate in every pipeline",
-      accent: "warning",
+      id: "projects",
+      title: "Projects in production",
+      value: null, // TODO: real number
+      caption: "see Deployments above",
+      accent: "cyan",
     },
     {
       kind: "list",
@@ -223,11 +221,19 @@ export const site: SiteContent = {
       title: "Toolbox",
       wide: true,
       items: [
-        { label: "Linux", detail: "daily driver", accent: "success" },
-        { label: "Git", detail: "trunk-based", accent: "success" },
-        { label: "Bash", detail: "automation", accent: "cyan" },
+        { label: "GitHub Actions", detail: "CI/CD", accent: "success" },
+        { label: "Docker", detail: "containers", accent: "cyan" },
+        { label: "Vercel", detail: "frontend hosting", accent: "violet" },
         { label: "TODO", detail: "add yours", accent: "warning" },
       ],
+    },
+    {
+      kind: "text",
+      id: "learning",
+      title: "Currently learning",
+      headline: "TODO: e.g. Terraform",
+      caption: "TODO: what you're levelling up next",
+      accent: "warning",
     },
   ],
 

@@ -8,8 +8,9 @@
   --color-line: rgb(148 163 184 / 0.12);
   --color-line-strong: rgb(148 163 184 / 0.24);
   --color-fg: #e6edf7;
-  --color-muted: #8a96ad;
-  --color-faint: #4b5568;
+  /* Both pass WCAG AA (4.5:1) for small text on bg and on glass panels */
+  --color-muted: #9ba6bc; /* ~7.9:1 on bg */
+  --color-faint: #7d89a3; /* ~5.7:1 on bg, ~5:1 on glass */
 
   --color-cyan: #22d3ee;
   --color-violet: #8b5cf6;

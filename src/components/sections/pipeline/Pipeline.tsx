@@ -9,19 +9,28 @@ import { StageCard } from "./StageCard";
  */
 export function Pipeline() {
   const stages = site.experience;
+  const running = stages.filter((s) => s.current).length;
+  const passed = stages.length - running;
 
   return (
     <Section id="pipeline" aria-labelledby="pipeline-title">
       <SectionHeader id="pipeline-title" index="02" label="gh run view --log career.yml" title="Pipeline">
-        Every milestone is a stage. Every stage passed before the next one started.
+        Every milestone is a stage. The last one is still running.
       </SectionHeader>
 
       <div className="glass mb-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl px-4 py-3 font-mono text-xs">
-        <span className="text-success">● passed</span>
+        {running > 0 ? (
+          <span className="flex items-center gap-2 text-warning">
+            <span className="size-2 animate-pulse-dot rounded-full bg-warning" aria-hidden="true" />
+            in progress
+          </span>
+        ) : (
+          <span className="text-success">● passed</span>
+        )}
         <span className="text-muted">workflow: career.yml</span>
         <span className="text-muted">branch: main</span>
         <span className="text-faint">
-          {stages.length}/{stages.length} jobs succeeded
+          {passed}/{stages.length} jobs succeeded{running > 0 && ` · ${running} running`}
         </span>
       </div>
 
@@ -29,7 +38,7 @@ export function Pipeline() {
         {/* rail: vertical on mobile, horizontal on desktop */}
         <div
           aria-hidden="true"
-          className="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-success/60 via-cyan/40 to-violet/40 md:top-5 md:right-0 md:bottom-auto md:left-0 md:h-px md:w-auto md:bg-gradient-to-r"
+          className="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-success/60 via-success/40 to-warning/50 md:top-5 md:right-0 md:bottom-auto md:left-0 md:h-px md:w-auto md:bg-gradient-to-r"
         />
         <ol className="relative grid gap-6 md:auto-cols-fr md:grid-flow-col md:gap-5">
           {stages.map((m, i) => (

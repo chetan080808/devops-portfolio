@@ -1,23 +1,56 @@
-import type { DashboardPanel } from "@/types/content";
+import type { Accent, DashboardPanel } from "@/types/content";
 import { accentHex, accentText } from "@/lib/accent";
 import { cn } from "@/lib/cn";
 import { PanelFrame } from "./PanelFrame";
 
 type PanelOf<K extends DashboardPanel["kind"]> = Extract<DashboardPanel, { kind: K }>;
 
+const wideClass = (wide?: boolean) => (wide ? "sm:col-span-2" : undefined);
+
 function formatValue(value: number, decimals = 0, suffix = "") {
   return `${value.toFixed(decimals)}${suffix}`;
 }
 
-function BigValue({ text, accent }: { text: string; accent: keyof typeof accentText }) {
-  return <p className={cn("font-mono text-4xl font-medium tracking-tight", accentText[accent])}>{text}</p>;
+/** Big metric number, or Grafana-style "No data" when the value isn't filled in yet. */
+function BigValue({ value, decimals, suffix, accent }: {
+  value: number | null;
+  decimals?: number;
+  suffix?: string;
+  accent: Accent;
+}) {
+  if (value === null) {
+    return <p className="font-mono text-lg text-faint">No data</p>;
+  }
+  return (
+    <p className={cn("font-mono text-4xl font-medium tracking-tight", accentText[accent])}>
+      {formatValue(value, decimals, suffix)}
+    </p>
+  );
 }
 
 export function StatPanel({ panel }: { panel: PanelOf<"stat"> }) {
   return (
-    <PanelFrame title={panel.title}>
+    <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <div className="flex flex-1 flex-col justify-between gap-4">
-        <BigValue text={formatValue(panel.value, panel.decimals, panel.suffix)} accent={panel.accent} />
+        <BigValue value={panel.value} decimals={panel.decimals} suffix={panel.suffix} accent={panel.accent} />
+        <p className="font-mono text-[0.7rem] text-muted">{panel.caption}</p>
+      </div>
+    </PanelFrame>
+  );
+}
+
+export function TextPanel({ panel }: { panel: PanelOf<"text"> }) {
+  return (
+    <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
+      <div className="flex flex-1 flex-col justify-between gap-4">
+        <p className={cn("flex items-start gap-2 text-lg leading-snug font-medium", accentText[panel.accent])}>
+          <span
+            className="mt-2 size-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: accentHex[panel.accent] }}
+            aria-hidden="true"
+          />
+          {panel.headline}
+        </p>
         <p className="font-mono text-[0.7rem] text-muted">{panel.caption}</p>
       </div>
     </PanelFrame>
@@ -26,20 +59,23 @@ export function StatPanel({ panel }: { panel: PanelOf<"stat"> }) {
 
 function sparkPath(series: number[], w: number, h: number) {
   const step = w / (series.length - 1);
-  return series.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(h - (v / 100) * h).toFixed(1)}`).join(" ");
+  return series
+    .map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(h - (v / 100) * h).toFixed(1)}`)
+    .join(" ");
 }
 
 export function SparklinePanel({ panel }: { panel: PanelOf<"sparkline"> }) {
   const W = 300;
   const H = 70;
-  const line = sparkPath(panel.series, W, H);
   const color = accentHex[panel.accent];
   const gradId = `spark-${panel.id}`;
+  const hasSeries = panel.series !== null && panel.series.length > 1;
+  const line = hasSeries ? sparkPath(panel.series!, W, H) : "";
 
   return (
-    <PanelFrame title={panel.title} className="sm:col-span-2">
+    <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <div className="flex items-end justify-between gap-4">
-        <BigValue text={formatValue(panel.value, panel.decimals, panel.suffix)} accent={panel.accent} />
+        <BigValue value={panel.value} decimals={panel.decimals} suffix={panel.suffix} accent={panel.accent} />
         <p className="pb-1 text-right font-mono text-[0.7rem] text-muted">{panel.caption}</p>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-4 h-20 w-full" aria-hidden="true">
@@ -52,8 +88,23 @@ export function SparklinePanel({ panel }: { panel: PanelOf<"sparkline"> }) {
         {[0.25, 0.5, 0.75].map((y) => (
           <line key={y} x1="0" x2={W} y1={H * y} y2={H * y} stroke="rgb(148 163 184 / 0.08)" strokeDasharray="2 4" />
         ))}
-        <path d={`${line} L${W},${H} L0,${H} Z`} fill={`url(#${gradId})`} />
-        <path d={line} fill="none" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+        {hasSeries ? (
+          <>
+            <path d={`${line} L${W},${H} L0,${H} Z`} fill={`url(#${gradId})`} />
+            <path d={line} fill="none" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+          </>
+        ) : (
+          <line
+            x1="0"
+            x2={W}
+            y1={H - 1}
+            y2={H - 1}
+            stroke={color}
+            strokeOpacity="0.35"
+            strokeDasharray="4 6"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
       </svg>
     </PanelFrame>
   );
@@ -63,25 +114,38 @@ export function GaugePanel({ panel }: { panel: PanelOf<"gauge"> }) {
   const r = 40;
   const arc = Math.PI * r; // semicircle length
   const color = accentHex[panel.accent];
+  const value = panel.value ?? 0;
 
   return (
-    <PanelFrame title={panel.title}>
+    <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <div className="relative mx-auto w-full max-w-[11rem]">
-        <svg viewBox="0 0 100 56" className="w-full" role="img" aria-label={`${panel.title}: ${panel.value}%`}>
+        <svg
+          viewBox="0 0 100 56"
+          className="w-full"
+          role="img"
+          aria-label={panel.value === null ? `${panel.title}: no data` : `${panel.title}: ${panel.value}%`}
+        >
           <path d="M10,50 A40,40 0 0 1 90,50" fill="none" stroke="rgb(148 163 184 / 0.12)" strokeWidth="7" strokeLinecap="round" />
-          <path
-            d="M10,50 A40,40 0 0 1 90,50"
-            fill="none"
-            stroke={color}
-            strokeWidth="7"
-            strokeLinecap="round"
-            strokeDasharray={arc}
-            strokeDashoffset={arc * (1 - panel.value / 100)}
-            style={{ filter: `drop-shadow(0 0 4px ${color})` }}
-          />
+          {panel.value !== null && (
+            <path
+              d="M10,50 A40,40 0 0 1 90,50"
+              fill="none"
+              stroke={color}
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={arc}
+              strokeDashoffset={arc * (1 - value / 100)}
+              style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+            />
+          )}
         </svg>
-        <p className={cn("absolute inset-x-0 bottom-0 text-center font-mono text-2xl", accentText[panel.accent])}>
-          {panel.value}%
+        <p
+          className={cn(
+            "absolute inset-x-0 bottom-0 text-center font-mono",
+            panel.value === null ? "text-sm text-faint" : cn("text-2xl", accentText[panel.accent]),
+          )}
+        >
+          {panel.value === null ? "No data" : `${panel.value}%`}
         </p>
       </div>
       <p className="mt-3 text-center font-mono text-[0.7rem] text-muted">{panel.caption}</p>
@@ -91,10 +155,10 @@ export function GaugePanel({ panel }: { panel: PanelOf<"gauge"> }) {
 
 export function ListPanel({ panel }: { panel: PanelOf<"list"> }) {
   return (
-    <PanelFrame title={panel.title} className={panel.wide ? "sm:col-span-2" : undefined}>
+    <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <ul className={cn("grid gap-x-8 gap-y-2", panel.wide && "sm:grid-cols-2")}>
-        {panel.items.map((item) => (
-          <li key={item.label} className="flex items-center justify-between gap-3 font-mono text-xs">
+        {panel.items.map((item, i) => (
+          <li key={`${item.label}-${i}`} className="flex items-center justify-between gap-3 font-mono text-xs">
             <span className="flex items-center gap-2 text-fg">
               <span
                 className="size-1.5 rounded-full"
@@ -103,7 +167,7 @@ export function ListPanel({ panel }: { panel: PanelOf<"list"> }) {
               />
               {item.label}
             </span>
-            <span className="text-faint">{item.detail}</span>
+            <span className="text-right text-muted">{item.detail}</span>
           </li>
         ))}
       </ul>

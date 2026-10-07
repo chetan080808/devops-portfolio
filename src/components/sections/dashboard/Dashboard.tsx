@@ -3,7 +3,7 @@ import type { DashboardPanel } from "@/types/content";
 import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { StatusDot } from "@/components/ui/StatusDot";
-import { GaugePanel, ListPanel, SparklinePanel, StatPanel } from "./panels";
+import { GaugePanel, ListPanel, SparklinePanel, StatPanel, TextPanel } from "./panels";
 
 function Panel({ panel }: { panel: DashboardPanel }) {
   switch (panel.kind) {
@@ -13,6 +13,8 @@ function Panel({ panel }: { panel: DashboardPanel }) {
       return <SparklinePanel panel={panel} />;
     case "gauge":
       return <GaugePanel panel={panel} />;
+    case "text":
+      return <TextPanel panel={panel} />;
     case "list":
       return <ListPanel panel={panel} />;
   }

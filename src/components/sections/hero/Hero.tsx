@@ -7,7 +7,7 @@ export function Hero() {
   const { profile, hero } = site;
 
   return (
-    <section id="top" className="relative flex min-h-dvh items-center px-4 pt-28 pb-16 sm:px-6">
+    <section id="top" className="relative flex min-h-[min(100svh,58rem)] items-center px-4 pt-28 pb-14 sm:px-6">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_1fr]">
         <div>
           <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.02] px-3 py-1 font-mono text-[0.7rem] text-muted">
@@ -40,7 +40,9 @@ export function Hero() {
             {hero.stats.map((stat) => (
               <div key={stat.label} className="px-4 py-4 first:pl-0">
                 <dt className="label-mono">{stat.label}</dt>
-                <dd className="mt-1 font-mono text-xl text-fg">{stat.value}</dd>
+                <dd className={`mt-1 font-mono text-xl ${stat.value === null ? "text-faint" : "text-fg"}`}>
+                  {stat.value ?? "—"}
+                </dd>
               </div>
             ))}
           </dl>

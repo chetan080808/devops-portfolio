@@ -50,48 +50,60 @@ export interface Milestone {
   period: string;
   summary: string;
   highlights: string[];
+  /** The stage you're in right now — rendered as "running" instead of passed */
+  current?: boolean;
+}
+
+/**
+ * Metric values are `null` until you fill in a real, defensible number.
+ * Null values render as "No data" (like an empty Grafana panel).
+ */
+type Metric = number | null;
+
+interface PanelBase {
+  id: string;
+  title: string;
+  /** Span two columns on wider screens */
+  wide?: boolean;
 }
 
 export type DashboardPanel =
-  | {
+  | (PanelBase & {
       kind: "stat";
-      id: string;
-      title: string;
-      value: number;
+      value: Metric;
       suffix?: string;
       decimals?: number;
       caption: string;
       accent: Accent;
-    }
-  | {
+    })
+  | (PanelBase & {
       kind: "sparkline";
-      id: string;
-      title: string;
-      value: number;
+      value: Metric;
       suffix?: string;
       decimals?: number;
       caption: string;
       accent: Accent;
-      /** Normalized series 0–100, oldest → newest */
-      series: number[];
-    }
-  | {
+      /** Real series normalized 0–100, oldest → newest; null = no data */
+      series: number[] | null;
+    })
+  | (PanelBase & {
       kind: "gauge";
-      id: string;
-      title: string;
       /** 0–100 */
-      value: number;
+      value: Metric;
       caption: string;
       accent: Accent;
-    }
-  | {
+    })
+  | (PanelBase & {
+      /** Descriptive panel — a statement instead of a number */
+      kind: "text";
+      headline: string;
+      caption: string;
+      accent: Accent;
+    })
+  | (PanelBase & {
       kind: "list";
-      id: string;
-      title: string;
-      /** Span two columns on wider screens */
-      wide?: boolean;
       items: { label: string; detail: string; accent: Accent }[];
-    };
+    });
 
 export interface SiteContent {
   meta: {
@@ -106,7 +118,8 @@ export interface SiteContent {
     eyebrow: string;
     primaryCta: Link;
     secondaryCta: Link;
-    stats: { label: string; value: string }[];
+    /** value: null renders "—" until you fill it in */
+    stats: { label: string; value: string | null }[];
   };
   projects: Project[];
   experience: Milestone[];
