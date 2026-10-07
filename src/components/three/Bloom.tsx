@@ -7,6 +7,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { createHeroMaskPass, updateHeroMask } from "./heroMaskPass";
 
 /**
  * Weight of each blur level, tightest first. Three's default (1, .8, .6, .4, .2) lets the widest
@@ -35,14 +36,17 @@ export function Bloom({ strength = 0.45, radius = 0, threshold = 0.55 }: Props) 
   const dpr = useThree((s) => s.viewport.dpr);
 
   // Settings only change between mobile/desktop, so rebuilding on change is fine.
-  const composer = useMemo(() => {
+  const { composer, mask } = useMemo(() => {
     const composer = new EffectComposer(gl);
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(new Vector2(256, 256), strength, radius, threshold);
     bloom.compositeMaterial.uniforms.bloomFactors.value = MIP_WEIGHTS;
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
-    return composer;
+    // Hides the hero scene behind the text / below the hero (see heroMaskPass).
+    const mask = createHeroMaskPass();
+    composer.addPass(mask);
+    return { composer, mask };
   }, [gl, scene, camera, strength, radius, threshold]);
 
   useEffect(() => {
@@ -52,6 +56,9 @@ export function Bloom({ strength = 0.45, radius = 0, threshold = 0.55 }: Props) 
 
   useEffect(() => () => composer.dispose(), [composer]);
 
-  useFrame((_, delta) => composer.render(delta), 1);
+  useFrame((state, delta) => {
+    updateHeroMask(mask, state.size.width, state.size.height);
+    composer.render(delta);
+  }, 1);
   return null;
 }

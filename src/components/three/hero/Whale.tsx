@@ -21,7 +21,7 @@ import {
   WHALE_START_SCALE,
   WHALE_SWIM,
 } from "./choreography";
-import { MINI_SCALE, attachMinis } from "./minis";
+import { MINI_SCALE, attachMinis, miniRegistry } from "./minis";
 import { whaleTrack } from "./tracking";
 import { WhaleController } from "./whaleController";
 
@@ -67,6 +67,10 @@ export function Whale() {
     return b;
   }, [whale]);
   const minis = useMemo(() => attachMinis(whale, containerScene, site.projects.length), [whale, containerScene]);
+  useEffect(() => {
+    miniRegistry.attached = minis.map((m) => m.object);
+    return () => void (miniRegistry.attached = []);
+  }, [minis]);
   // Also frees the minis' materials: they're parented under the whale.
   useEffect(() => () => disposeMaterials(whale), [whale]);
 

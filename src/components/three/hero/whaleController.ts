@@ -1,5 +1,5 @@
 import { Box3, MathUtils, Vector2, Vector3, type Object3D, type PerspectiveCamera } from "three";
-import { heroLayout } from "../heroLayout";
+import { canvasOrigin, heroLayout } from "../heroLayout";
 import { pointer, pointerFollowing } from "../pointer";
 import { fromCanvasPx, toCanvasPx } from "../projection";
 import { SWIM } from "./choreography";
@@ -48,6 +48,8 @@ export class WhaleController {
   private flickCooldown = 0;
   private wasOver = false;
   private frame = 0;
+  /** Canvas origin (page px) for this frame: hero geometry is stored in page coordinates */
+  private o = { x: 0, y: 0 };
   /** Screen y (canvas px) of the cluster's top edge: helm wheel, nodes, container */
   private obstacleTop = Infinity;
   /**
@@ -79,6 +81,9 @@ export class WhaleController {
 
   update(dt: number, whale: Object3D, scene: Object3D, camera: PerspectiveCamera, w: number, h: number, still: boolean): SwimPose {
     dt = Math.min(dt, 1 / 20);
+    const origin = canvasOrigin();
+    this.o.x = origin.x;
+    this.o.y = origin.y;
     if (this.frame++ % 20 === 0) this.measureObstacles(scene, camera, w, h);
     this.measure(whale, camera, w, h);
     this.updateFit(dt);
@@ -87,12 +92,12 @@ export class WhaleController {
 
     // ── Target (px → world on the swim plane)
     if (following) {
-      const cx = pointer.client.x - (heroLayout.canvasDocX - window.scrollX);
-      const cy = pointer.client.y - (heroLayout.canvasDocY - window.scrollY);
+      const cx = pointer.client.x + window.scrollX - this.o.x;
+      const cy = pointer.client.y + window.scrollY - this.o.y;
       px.set(MathUtils.clamp(cx, zone.x0, zone.x1), MathUtils.clamp(cy, zone.y0, zone.y1));
     } else {
       if (!still) this.theta += ((Math.PI * 2) / SWIM.idle.period) * dt;
-      const homeX = MathUtils.clamp(SWIM.idle.homeX * heroLayout.viewportW - heroLayout.canvasDocX, zone.x0, zone.x1);
+      const homeX = MathUtils.clamp(SWIM.idle.homeX * heroLayout.viewportW + window.scrollX - this.o.x, zone.x0, zone.x1);
       // Home height: a fixed point above the cluster, so on tall screens it stays close to the
       // cluster instead of drifting to the top; short screens clamp it below the headroom.
       toCanvasPx(HOME_ANCHOR, camera, w, h, homePx);
@@ -139,7 +144,7 @@ export class WhaleController {
     if (Math.abs(this.vel.x) > 0.35) this.faceLeft = this.vel.x < 0;
     else if (following) {
       fromCanvasPx(
-        pointer.client.x - (heroLayout.canvasDocX - window.scrollX),
+        pointer.client.x + window.scrollX - this.o.x,
         centrePx.y,
         SWIM.z,
         camera,
@@ -189,12 +194,13 @@ export class WhaleController {
     const L = heroLayout;
     if (!L.fullBleed) return;
     this.measure(whale, camera, w, h);
-    const dx = Math.max(0, L.text.x1 + LIMITS.textGap - this.screenBox.x0);
-    let dy = Math.max(0, L.navBottom + LIMITS.headroom - this.screenBox.y0);
+    const o = canvasOrigin();
+    const dx = Math.max(0, L.text.x1 - o.x + LIMITS.textGap - this.screenBox.x0);
+    let dy = Math.max(0, L.navBottom - o.y + LIMITS.headroom - this.screenBox.y0);
     if (dy === 0) {
       // Above the cluster: push up, but never into the headroom.
       const over = this.screenBox.y1 - (this.obstacleTop - SWIM.clusterGap);
-      const room = this.screenBox.y0 - (L.navBottom + LIMITS.headroom);
+      const room = this.screenBox.y0 - (L.navBottom - o.y + LIMITS.headroom);
       if (over > 0) dy = -Math.min(over, Math.max(0, room));
     }
     if (dx === 0 && dy === 0) return;
@@ -231,7 +237,7 @@ export class WhaleController {
   private updateFit(dt: number) {
     const L = heroLayout;
     if (!L.fullBleed || !Number.isFinite(this.obstacleTop)) return;
-    const room = this.obstacleTop - SWIM.clusterGap - (L.navBottom + SWIM.headroom) - 2 * SWIM.bob.px;
+    const room = this.obstacleTop - SWIM.clusterGap - (L.navBottom - this.o.y + SWIM.headroom) - 2 * SWIM.bob.px;
     const height = this.ext.up + this.ext.down;
     if (height <= 0) return;
     const target = MathUtils.clamp((this.fit * room) / height, SWIM.minFit, 1);
@@ -267,22 +273,23 @@ export class WhaleController {
   /** Allowed rectangle for the whale's projected centre (canvas px). */
   private zone(w: number, h: number) {
     const L = heroLayout;
-    const right = L.fullBleed ? Math.min(w, L.viewportW - L.canvasDocX) : w;
-    const x0 = (L.fullBleed ? L.text.x1 + SWIM.textGap : 0) + this.ext.left;
+    const o = this.o;
+    const right = L.fullBleed ? Math.min(w, L.viewportW + window.scrollX - o.x) : w;
+    const x0 = (L.fullBleed ? L.text.x1 - o.x + SWIM.textGap : 0) + this.ext.left;
     const x1 = Math.max(x0, right - SWIM.rightMargin - this.ext.right);
-    const y0 = (L.fullBleed ? L.navBottom + SWIM.headroom : 0) + this.ext.up;
+    const y0 = (L.fullBleed ? L.navBottom - o.y + SWIM.headroom : 0) + this.ext.up;
     // Headroom wins over the fold if both can't be met.
     // Never down over the cluster / helm wheel; the fold bounds it too. Headroom wins a conflict
     // (the whale shrinks to fit instead, see updateFit).
-    const floor = Math.min(h, L.fullBleed ? L.foldBottom : h) - SWIM.foldMargin;
+    const floor = (L.fullBleed ? L.foldBottom - o.y : h) - SWIM.foldMargin;
     const clusterFloor = L.fullBleed ? this.obstacleTop - SWIM.clusterGap : Infinity;
     const y1 = Math.max(y0, Math.min(floor, clusterFloor) - this.ext.down);
     return { x0, x1, y0, y1 };
   }
 
   private hovered() {
-    const cx = pointer.client.x - (heroLayout.canvasDocX - window.scrollX);
-    const cy = pointer.client.y - (heroLayout.canvasDocY - window.scrollY);
+    const cx = pointer.client.x + window.scrollX - this.o.x;
+    const cy = pointer.client.y + window.scrollY - this.o.y;
     const { x0, y0, x1, y1 } = this.screenBox;
     const ix = (x1 - x0) * 0.15;
     const iy = (y1 - y0) * 0.15;

@@ -5,7 +5,7 @@ import { MathUtils, PerspectiveCamera, Vector3 } from "three";
 import { CAMERA_FIT, CAMERA_KEYS, IDLE, WHALE_SETTLED_AT, WHALE_TRACKING } from "./hero/choreography";
 import { whaleTrack } from "./hero/tracking";
 import { power2InOut, span, useIntroClock } from "./intro";
-import { heroLayout } from "./heroLayout";
+import { canvasOrigin, heroLayout } from "./heroLayout";
 import { pointer } from "./pointer";
 
 /**
@@ -63,29 +63,53 @@ export function CameraRig() {
   return null;
 }
 
-let lastKey = "";
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-4;
 
-/** Lens + framing: fit the stage frame (desktop, lens-shifted) or the whole canvas (mobile). */
+/**
+ * Lens + framing: fit the stage frame (desktop, lens-shifted) or the whole canvas (mobile).
+ * Compares against the camera's actual values every frame (no cached key): R3F resets
+ * `camera.aspect` on its own when it handles a resize.
+ */
 function frameCamera(camera: PerspectiveCamera, w: number, h: number) {
-  const { fullBleed, stage } = heroLayout;
-  const sw = (stage.x1 - stage.x0) * (1 + 2 * BLEED_X);
-  const sh = (stage.y1 - stage.y0) * (1 + 2 * BLEED_Y);
-  const useFrame = fullBleed && sw > 0 && sh > 0;
-  const key = useFrame ? `${w}|${h}|${stage.x0}|${stage.y0}|${sw}|${sh}` : `${w}|${h}`;
-  if (key === lastKey) return;
-  lastKey = key;
-  if (useFrame) {
-    camera.aspect = sw / sh;
-    camera.fov = fitFov(sw / sh);
-    const fx = stage.x0 - (stage.x1 - stage.x0) * BLEED_X;
-    const fy = stage.y0 - (stage.y1 - stage.y0) * BLEED_Y;
+  const { fullBleed, stage: page } = heroLayout;
+  // Stage in canvas px. The desktop canvas is fixed to the viewport, so this follows the scroll
+  // and the hero scene scrolls with the page.
+  const o = canvasOrigin();
+  const sx0 = page.x0 - o.x;
+  const sy0 = page.y0 - o.y;
+  const stageW = page.x1 - page.x0;
+  const stageH = page.y1 - page.y0;
+  const sw = stageW * (1 + 2 * BLEED_X);
+  const sh = stageH * (1 + 2 * BLEED_Y);
+
+  if (fullBleed && sw > 0 && sh > 0) {
+    const aspect = sw / sh;
+    const fov = fitFov(aspect);
+    const ox = -(sx0 - stageW * BLEED_X);
+    const oy = -(sy0 - stageH * BLEED_Y);
+    const v = camera.view;
+    const same =
+      v?.enabled &&
+      near(camera.aspect, aspect) &&
+      near(camera.fov, fov) &&
+      near(v.fullWidth, sw) &&
+      near(v.fullHeight, sh) &&
+      near(v.offsetX, ox) &&
+      near(v.offsetY, oy) &&
+      near(v.width, w) &&
+      near(v.height, h);
+    if (same) return;
+    camera.aspect = aspect;
+    camera.fov = fov;
     // The frame is the "full image"; the canvas is a window onto it extending past its edges.
-    camera.setViewOffset(sw, sh, -fx, -fy, w, h);
+    camera.setViewOffset(sw, sh, ox, oy, w, h);
   } else {
+    const aspect = w / h;
+    const fov = fitFov(aspect);
+    if (!camera.view?.enabled && near(camera.aspect, aspect) && near(camera.fov, fov)) return;
     camera.clearViewOffset();
-    camera.aspect = w / h;
-    camera.fov = fitFov(w / h);
+    camera.aspect = aspect;
+    camera.fov = fov;
   }
   camera.updateProjectionMatrix();
 }
-

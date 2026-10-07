@@ -11,7 +11,7 @@ export function ProjectGrid({ projects }: { projects: Project[] }) {
 
   return (
     <>
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div data-project-grid className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {projects.map((project, i) => (
           <ProjectCard key={project.id} project={project} index={i} onInspect={setActive} />
         ))}

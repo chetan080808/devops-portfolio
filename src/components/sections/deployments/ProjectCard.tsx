@@ -1,6 +1,7 @@
 import type { Project } from "@/types/content";
 import { Badge } from "@/components/ui/Badge";
 import { Chip } from "@/components/ui/Chip";
+import { MiniSlot } from "./MiniSlot";
 
 const MAX_CHIPS = 5;
 
@@ -26,7 +27,10 @@ export function ProjectCard({ project, index, onInspect }: {
         <Badge accent={project.status === "Running" ? "success" : "warning"}>{project.status}</Badge>
       </div>
 
-      <h3 className="mt-5 text-xl font-semibold tracking-tight text-fg">{project.name}</h3>
+      <div className="mt-5 flex items-start justify-between gap-4">
+        <h3 className="text-xl font-semibold tracking-tight text-fg">{project.name}</h3>
+        <MiniSlot index={index} />
+      </div>
       <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{project.impact}</p>
 
       <ul className="mt-6 flex flex-wrap gap-1.5" aria-label="Tech stack">

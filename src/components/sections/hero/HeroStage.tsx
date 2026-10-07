@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import dynamic from "next/dynamic";
 import { CanvasErrorBoundary } from "@/components/three/CanvasErrorBoundary";
 import { NODE_COUNT } from "@/components/three/cluster/layout";
-import { heroLayout, measureHeroLayout } from "@/components/three/heroLayout";
+import { measureHeroLayout } from "@/components/three/heroLayout";
 import { useIsMobile, useMediaQuery, usePrefersReducedMotion } from "@/hooks/useMediaQuery";
 import { useSceneState } from "@/hooks/useSceneState";
 import { cn } from "@/lib/cn";
@@ -19,19 +19,6 @@ const maskStyle = (image: string): CSSProperties => ({
   maskComposite: "intersect",
   WebkitMaskComposite: "source-in",
 });
-
-/**
- * Desktop: the canvas spans the whole hero (so the whale can swim into the gap next to the
- * text), but nothing renders behind the text: fully transparent up to the text's right edge,
- * fading in over the 32 px clearance the whale keeps from it.
- */
-function fullBleedMask(textRight: number) {
-  const a = Math.max(0, Math.round(textRight));
-  return (
-    `linear-gradient(to right, transparent ${a}px, black ${a + 32}px, black 96%, transparent), ` +
-    "linear-gradient(to bottom, transparent, black 7%, black 92%, transparent)"
-  );
-}
 
 // three + R3F + scene code live in their own chunk, fetched on the client only.
 const HeroCanvas = dynamic(() => import("@/components/three/HeroCanvas"), { ssr: false });
@@ -49,14 +36,24 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const canvasBox = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(true);
-  const [mask, setMask] = useState(EDGE_FADE);
 
-  // Stop the render loop entirely while the hero is off screen.
+  // Stop the render loop while neither the hero nor Deployments (where the minis land) is visible.
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { rootMargin: "100px" });
-    io.observe(el);
+    const hero = ref.current?.closest("section");
+    if (!hero) return;
+    const targets = [hero, document.getElementById("deployments")].filter((el): el is HTMLElement => !!el);
+    const visible = new Set<Element>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) visible.add(e.target);
+          else visible.delete(e.target);
+        }
+        setInView(visible.size > 0);
+      },
+      { rootMargin: "100px" },
+    );
+    targets.forEach((t) => io.observe(t));
     return () => io.disconnect();
   }, []);
 
@@ -66,10 +63,7 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
     const box = canvasBox.current;
     if (!stage || !box) return;
     const text = stage.closest("section")?.querySelector<HTMLElement>("[data-hero-text]") ?? null;
-    const measure = () => {
-      measureHeroLayout(box, stage, text, desktop);
-      setMask(desktop ? fullBleedMask(heroLayout.text.x1) : EDGE_FADE);
-    };
+    const measure = () => measureHeroLayout(box, stage, text, desktop);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(box);
@@ -83,11 +77,10 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
 
   return (
     // Desktop: spans the whole right column, top-aligned (centring against the taller text
-    // column pushed the cluster below the fold on short screens). `lg:static` lets the canvas
-    // below position itself against the whole hero section.
+    // column pushed the cluster below the fold on short screens).
     <div
       ref={ref}
-      className="relative mx-auto aspect-square w-full max-w-[34rem] lg:static lg:aspect-auto lg:h-[clamp(21rem,calc(100svh-7.5rem),38rem)] lg:max-w-none lg:self-start"
+      className="relative mx-auto aspect-square w-full max-w-[34rem] lg:aspect-auto lg:h-[clamp(21rem,calc(100svh-7.5rem),38rem)] lg:max-w-none lg:self-start"
     >
       <div className="relative h-full w-full">
         <div className={cn("absolute inset-0 transition-opacity duration-700", ready && "opacity-0")}>{fallback}</div>
@@ -102,9 +95,16 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
         </p>
       </div>
 
-      <div ref={canvasBox} className="pointer-events-none absolute inset-0 -z-0" style={maskStyle(mask)}>
+      {/* Mobile: inside the stage with soft CSS edges. Desktop: fixed to the viewport, above the
+          content (so the minis can land on the project cards) and below the navbar; the hero
+          scene follows the scroll and is masked in WebGL (heroMaskPass). */}
+      <div
+        ref={canvasBox}
+        className="pointer-events-none absolute inset-0 lg:fixed lg:z-30"
+        style={desktop ? undefined : maskStyle(EDGE_FADE)}
+      >
         <CanvasErrorBoundary>
-          <HeroCanvas mobile={mobile} reducedMotion={reducedMotion} active={inView} />
+          <HeroCanvas mobile={mobile} reducedMotion={reducedMotion} drop={desktop && !reducedMotion} active={inView} />
         </CanvasErrorBoundary>
       </div>
     </div>

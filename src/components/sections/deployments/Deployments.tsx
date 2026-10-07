@@ -1,6 +1,7 @@
 import { site } from "@/content/site";
 import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { MiniDropScroll } from "./MiniDropScroll";
 import { ProjectGrid } from "./ProjectGrid";
 
 export function Deployments() {
@@ -15,6 +16,7 @@ export function Deployments() {
         NAME · READY · STATUS — <span className="text-success">{running}/{site.projects.length} running</span>
       </p>
       <ProjectGrid projects={site.projects} />
+      <MiniDropScroll />
     </Section>
   );
 }

@@ -13,12 +13,14 @@ interface Props {
   mobile: boolean;
   /** Skip the intro choreography and render the settled scene */
   reducedMotion: boolean;
+  /** Desktop with motion: minis drop into the project cards on scroll */
+  drop: boolean;
   /** False while the hero is scrolled out of view: stop rendering entirely */
   active: boolean;
 }
 
 /** The lazy-loaded R3F canvas for the hero. Default export for `next/dynamic`. */
-export default function HeroCanvas({ mobile, reducedMotion, active }: Props) {
+export default function HeroCanvas({ mobile, reducedMotion, drop, active }: Props) {
   return (
     <Canvas
       // `flat` = no tone mapping: neon stays saturated; bloom provides the glow.
@@ -32,7 +34,7 @@ export default function HeroCanvas({ mobile, reducedMotion, active }: Props) {
       onCreated={({ gl }) => (gl.debug.checkShaderErrors = process.env.NODE_ENV !== "production")}
     >
       <Suspense fallback={null}>
-        <Scene mobile={mobile} reducedMotion={reducedMotion} />
+        <Scene mobile={mobile} reducedMotion={reducedMotion} drop={drop} />
         <ReadySignal />
       </Suspense>
     </Canvas>

@@ -7,6 +7,7 @@ import { CameraRig } from "./CameraRig";
 import { Cluster } from "./cluster/Cluster";
 import { HelmWheel } from "./HelmWheel";
 import { HeroContainer } from "./hero/HeroContainer";
+import { MiniDrop } from "./hero/MiniDrop";
 import { Whale } from "./hero/Whale";
 import { IntroClock, IntroContext } from "./intro";
 import { IntroTicker } from "./IntroTicker";
@@ -16,13 +17,15 @@ import { usePointerFollow } from "./pointer";
 interface Props {
   mobile: boolean;
   reducedMotion: boolean;
+  /** Desktop with motion: minis drop into the project cards on scroll (4a) */
+  drop: boolean;
 }
 
 /**
  * Hero scene. Every model component calls useGLTF itself (one call per URL), so this whole tree
  * suspends until all models are parsed and the boot overlay covers the full load.
  */
-export function Scene({ mobile, reducedMotion }: Props) {
+export function Scene({ mobile, reducedMotion, drop }: Props) {
   const clock = useMemo(() => new IntroClock(reducedMotion), [reducedMotion]);
   // Mouse-follow on desktop only (no mouse on mobile; nothing moves under reduced motion).
   usePointerFollow(!mobile && !reducedMotion);
@@ -49,6 +52,7 @@ export function Scene({ mobile, reducedMotion }: Props) {
       <HelmWheel />
       <HeroContainer />
       <Whale />
+      {drop && <MiniDrop />}
       <Bloom strength={mobile ? 0.26 : 0.32} />
     </IntroContext>
   );

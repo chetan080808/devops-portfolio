@@ -8,8 +8,12 @@ export const MINI_SCALE = 0.25;
  * slab. Spread them out from the cargo centre so each project reads as its own container.
  */
 const SLOT_SPREAD = new Vector3(1.4, 1, 1.35);
-/** Single-file layouts: wider gaps along the spine so each container reads on its own. */
-const SINGLE_SPREAD = new Vector3(1, 1, 2.1);
+/**
+ * Single-file layouts: the containers sit close together on the deck, centred on it, with small
+ * even gaps (pitch 0.225 × 1.05 ≈ 0.236 vs a turned mini's 0.179 width → ~0.06 gap), so they read
+ * as three separate pieces of cargo without overhanging the deck.
+ */
+const SINGLE_SPREAD = new Vector3(1, 1, 1.05);
 /**
  * Minis read as solid containers: dark slate bodies (light enough for the corrugation and door
  * detail to catch the key light on the whale's back), neon only on the edges at a moderate level
@@ -37,6 +41,31 @@ export interface Mini {
   object: Object3D;
 }
 
+/** The minis currently riding the whale (project order), for the scroll drop (MiniDrop). */
+export const miniRegistry: { attached: Object3D[] } = { attached: [] };
+
+/**
+ * One mini container: an independent clone with its own materials (hover / recolour on one
+ * project never touches the others or the hero container), solid slate body, moderate neon.
+ */
+export function buildMini(containerScene: Object3D) {
+  const object = cloneWithMaterials(containerScene, MINI_NEON_BOOST);
+  // Own names: the clone carries the "ShippingContainer" node too, which the whale treats as an
+  // obstacle to stay above (the hero container).
+  object.name = "Mini";
+  const inner = object.getObjectByName("ShippingContainer");
+  if (inner) inner.name = "MiniContainer";
+  object.traverse((o) => {
+    const m = (o as Mesh).material;
+    if (m instanceof MeshStandardMaterial && !m.userData.neon && m.name !== "PF_InteriorGlow") {
+      m.color.set(MINI_BODY_COLOR);
+      m.metalness = 0.45;
+      m.roughness = 0.55;
+    }
+  });
+  return object;
+}
+
 /**
  * Builds `count` independent minis (each its own clone + materials, so hovering or recolouring
  * one never touches the others or the hero container) and parents them to the whale's cargo
@@ -57,20 +86,7 @@ export function attachMinis(whale: Object3D, containerScene: Object3D, count: nu
       .sub(centre)
       .multiply(layout.single ? SINGLE_SPREAD : SLOT_SPREAD)
       .add(centre);
-    const object = cloneWithMaterials(containerScene, MINI_NEON_BOOST);
-    // Own names: the clone carries the "ShippingContainer" node too, which the whale treats as an
-    // obstacle to stay above (the hero container).
-    object.name = "Mini";
-    const inner = object.getObjectByName("ShippingContainer");
-    if (inner) inner.name = "MiniContainer";
-    object.traverse((o) => {
-      const m = (o as Mesh).material;
-      if (m instanceof MeshStandardMaterial && !m.userData.neon && m.name !== "PF_InteriorGlow") {
-        m.color.set(MINI_BODY_COLOR);
-        m.metalness = 0.45;
-        m.roughness = 0.55;
-      }
-    });
+    const object = buildMini(containerScene);
     object.position.copy(position);
     if (layout.single) object.rotation.y = Math.PI / 2;
     object.scale.setScalar(0); // popped in by the whale's timeline
