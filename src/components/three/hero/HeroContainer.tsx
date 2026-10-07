@@ -13,7 +13,7 @@ import {
 } from "three";
 import { DRACO_PATH, MODELS } from "../assets";
 import { expoOut, power2InOut, span, useIntroClock } from "../intro";
-import { cloneWithMaterials, disposeMaterials, neonMaterialsUnder } from "../materials";
+import { cloneWithMaterials, disposeMaterials, neonMaterialsUnder, tunePart } from "../materials";
 import {
   CONTAINER_DROP,
   CONTAINER_IDLE,
@@ -52,7 +52,12 @@ function getSpillTexture() {
 export function HeroContainer() {
   const clock = useIntroClock();
   const { scene, animations } = useGLTF(MODELS.container, DRACO_PATH);
-  const container = useMemo(() => cloneWithMaterials(scene, CONTAINER_NEON_BOOST), [scene]);
+  const container = useMemo(() => {
+    const clone = cloneWithMaterials(scene, CONTAINER_NEON_BOOST);
+    // The boost is for the outer edges; the interior strips would clip to white at that level.
+    tunePart(clone, "Container_InteriorLights", (m) => (m.emissiveIntensity /= CONTAINER_NEON_BOOST));
+    return clone;
+  }, [scene]);
   useEffect(() => () => disposeMaterials(container), [container]);
 
   const edges = useMemo(() => neonMaterialsUnder(container, "Container_EdgeGlow"), [container]);
@@ -104,8 +109,8 @@ export function HeroContainer() {
     <>
       <group ref={group} visible={false} rotation-y={CONTAINER_YAW} scale={CONTAINER_SCALE}>
         <primitive object={container} />
-        {/* Inside, toward the back wall; local units are the container's native size. */}
-        <pointLight ref={light} position={[0, 0.42, -0.35]} color="#22d3ee" intensity={0} distance={6} decay={2} />
+        {/* Upper back corner (container-local units): the whale never passes close enough to blow out. */}
+        <pointLight ref={light} position={[0, 0.66, -0.75]} color="#22d3ee" intensity={0} distance={6} decay={2} />
       </group>
       {/* Light pool on the deck in front of the doors (additive, so it only ever brightens). */}
       <mesh position={SPILL.centre} rotation-x={-Math.PI / 2} scale={SPILL.radius * 2}>

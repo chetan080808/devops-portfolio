@@ -2,10 +2,17 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useIntroClock } from "./intro";
+import { smoothPointer } from "./pointer";
 
-/** Advances the intro clock once per rendered frame, before anything reads it (priority −1). */
+/**
+ * Runs first every rendered frame (priority −1): advances the intro clock and eases the
+ * mouse-follow target, so every reader sees the same values this frame.
+ */
 export function IntroTicker() {
   const clock = useIntroClock();
-  useFrame((_, delta) => clock.tick(delta), -1);
+  useFrame((_, delta) => {
+    clock.tick(delta);
+    smoothPointer(delta);
+  }, -1);
   return null;
 }

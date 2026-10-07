@@ -1,4 +1,4 @@
-import { Vector3, type Object3D } from "three";
+import { Mesh, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { cloneWithMaterials } from "../materials";
 
 /** Mini = shipping_container.glb at 0.25× (doors closed), one per project. */
@@ -7,23 +7,30 @@ export const MINI_SCALE = 0.25;
  * The authored slots leave ~2 cm between minis, so at hero distance they merge into one glowing
  * slab. Spread them out from the cargo centre so each project reads as its own container.
  */
-const SLOT_SPREAD = new Vector3(1.4, 1, 1.18);
+const SLOT_SPREAD = new Vector3(1.4, 1, 1.35);
+/** Single-file layouts: wider gaps along the spine so each container reads on its own. */
+const SINGLE_SPREAD = new Vector3(1, 1, 2.1);
 /**
- * Minis are the projects, so their rails must pop: neon pushed well past the standard level.
- * At 0.25× the Container_EdgeGlow rails are ~5 mm thick in world units, so they rely on bloom.
+ * Minis read as solid containers: dark slate bodies (light enough for the corrugation and door
+ * detail to catch the key light on the whale's back), neon only on the edges at a moderate level
+ * so they don't bloom into wireframes.
  */
-const MINI_NEON_BOOST = 2.4;
+const MINI_NEON_BOOST = 0.9;
+const MINI_BODY_COLOR = "#3a4160";
 
 /**
  * Which cargo slots to use for n minis, kept visually balanced on the whale's back.
- * Numbers are Slot_1..Slot_5 from whale.glb; a pair [a, b] means "centred between a and b".
+ * Numbers are Slot_1..Slot_5 from whale.glb; a list of slots means "centred between them".
+ * `single` layouts run in single file along the spine, each mini turned 90° so its long,
+ * corrugated side faces the camera: in the hero's side / three-quarter view, minis side by side
+ * across the back would hide one another.
  */
-const SLOT_LAYOUT: Record<number, Array<number | [number, number]>> = {
-  1: [[1, 2]],
-  2: [1, 2],
-  3: [1, 2, [3, 4]],
-  4: [1, 2, 3, 4],
-  5: [1, 2, 3, 4, 5],
+const SLOT_LAYOUT: Record<number, { single: boolean; slots: number[][] }> = {
+  1: { single: true, slots: [[1, 2, 3, 4]] },
+  2: { single: true, slots: [[1, 2], [3, 4]] },
+  3: { single: true, slots: [[1, 2], [1, 2, 3, 4], [3, 4]] },
+  4: { single: false, slots: [[1], [2], [3], [4]] },
+  5: { single: false, slots: [[1], [2], [3], [4], [5]] },
 };
 
 export interface Mini {
@@ -40,17 +47,35 @@ export function attachMinis(whale: Object3D, containerScene: Object3D, count: nu
   const frame = slots[0]?.parent;
   if (!frame || slots.some((s) => !s)) return [];
 
-  const layout = SLOT_LAYOUT[Math.min(Math.max(count, 0), 5)] ?? [];
+  const layout = SLOT_LAYOUT[Math.min(Math.max(count, 0), 5)];
+  if (!layout) return [];
   const at = (n: number) => slots[n - 1]!.position;
-  const centre = [1, 2, 3, 4].reduce((c, n) => c.add(at(n)), new Vector3()).multiplyScalar(0.25);
-  return layout.map((slot) => {
-    const authored =
-      typeof slot === "number" ? at(slot).clone() : new Vector3().addVectors(at(slot[0]), at(slot[1])).multiplyScalar(0.5);
-    const position = authored.sub(centre).multiply(SLOT_SPREAD).add(centre);
+  const mean = (ns: number[]) => ns.reduce((c, n) => c.add(at(n)), new Vector3()).multiplyScalar(1 / ns.length);
+  const centre = mean([1, 2, 3, 4]);
+  return layout.slots.map((group) => {
+    const position = mean(group)
+      .sub(centre)
+      .multiply(layout.single ? SINGLE_SPREAD : SLOT_SPREAD)
+      .add(centre);
     const object = cloneWithMaterials(containerScene, MINI_NEON_BOOST);
+    // Own names: the clone carries the "ShippingContainer" node too, which the whale treats as an
+    // obstacle to stay above (the hero container).
+    object.name = "Mini";
+    const inner = object.getObjectByName("ShippingContainer");
+    if (inner) inner.name = "MiniContainer";
+    object.traverse((o) => {
+      const m = (o as Mesh).material;
+      if (m instanceof MeshStandardMaterial && !m.userData.neon && m.name !== "PF_InteriorGlow") {
+        m.color.set(MINI_BODY_COLOR);
+        m.metalness = 0.45;
+        m.roughness = 0.55;
+      }
+    });
     object.position.copy(position);
+    if (layout.single) object.rotation.y = Math.PI / 2;
     object.scale.setScalar(0); // popped in by the whale's timeline
     frame.add(object);
     return { object };
   });
 }
+

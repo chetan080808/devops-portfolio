@@ -62,3 +62,15 @@ export function disposeMaterials(root: Object3D) {
     mats.forEach((m) => m.dispose());
   });
 }
+
+/**
+ * Give every mesh under `part` its own copy of its neon material, then adjust it. GLB parts
+ * often share one neon material (e.g. rim + hub cap), so tune one without touching the others.
+ */
+export function tunePart(root: Object3D, part: string, adjust: (m: MeshStandardMaterial) => void) {
+  root.getObjectByName(part)?.traverse((o) => {
+    if (!(o instanceof Mesh) || Array.isArray(o.material) || !isNeon(o.material)) return;
+    o.material = o.material.clone();
+    adjust(o.material);
+  });
+}

@@ -23,6 +23,11 @@ export class IntroClock {
   private started = false;
   constructor(private readonly skip: boolean) {}
 
+  /** Reduced motion: the scene is held still (no idle bob, follow, spin or swim). */
+  get still() {
+    return this.skip;
+  }
+
   tick(delta: number) {
     if (!this.started) this.started = sceneStore.get().bootDone;
     if (this.started) this.elapsed += Math.min(delta, MAX_STEP);

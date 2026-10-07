@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { AnimationMixer, Euler, MathUtils, MeshStandardMaterial, Vector3, type Group, type Mesh } from "three";
+import { AnimationMixer, Box3, Euler, MathUtils, MeshStandardMaterial, Vector3, type Group, type Mesh, type PerspectiveCamera, type PointLight } from "three";
 import { site } from "@/content/site";
 import { DRACO_PATH, MODELS } from "../assets";
 import { clamp01, power2InOut, span, useIntroClock } from "../intro";
@@ -17,15 +17,21 @@ import {
   WHALE_GROW,
   WHALE_PATH,
   WHALE_SCALE,
+  WHALE_SETTLED_AT,
   WHALE_START_SCALE,
   WHALE_SWIM,
 } from "./choreography";
 import { MINI_SCALE, attachMinis } from "./minis";
 import { whaleTrack } from "./tracking";
+import { WhaleController } from "./whaleController";
 
 const HIDE_COLOR = "#1c1f33";
+const MINI_KEY_LIGHT = 4;
+/** Height the minis add above the whale's back (whale-local units) */
+const MINI_TOP = 0.22;
 const PATH_LENGTH = WHALE_PATH.getLength();
 const tangent = new Vector3();
+const pathPos = new Vector3();
 const ahead = new Vector3();
 const euler = new Euler(0, 0, 0, "YXZ");
 
@@ -53,6 +59,13 @@ export function Whale() {
     });
     return clone;
   }, [scene]);
+  // Bounds in whale space for on-screen limits: the body's box (the clone is still untransformed
+  // and the minis, attached next, start at scale 0) plus the height the minis add on its back.
+  const localBounds = useMemo(() => {
+    const b = new Box3().setFromObject(whale);
+    b.max.y += MINI_TOP;
+    return b;
+  }, [whale]);
   const minis = useMemo(() => attachMinis(whale, containerScene, site.projects.length), [whale, containerScene]);
   // Also frees the minis' materials: they're parented under the whale.
   useEffect(() => () => disposeMaterials(whale), [whale]);
@@ -67,6 +80,8 @@ export function Whale() {
   }, [swim, animations]);
 
   const group = useRef<Group>(null);
+  const keyLight = useRef<PointLight>(null);
+  const controller = useRef<WhaleController | null>(null);
 
   useFrame((state, delta) => {
     const g = group.current;
@@ -74,11 +89,13 @@ export function Whale() {
     const t = clock.time();
     g.visible = t >= DOORS.start;
     if (!g.visible) return;
-    swim.update(delta);
 
     // Progress along the path, then position + orientation from the curve.
     const u = power2InOut(span(t, WHALE_SWIM.start, WHALE_SWIM.duration));
-    WHALE_PATH.getPointAt(u, g.position);
+    // Once the controller owns the whale, the path must not touch its position: the controller
+    // measures the whale's on-screen box from its current pose at the start of the frame.
+    WHALE_PATH.getPointAt(u, pathPos);
+    if (!controller.current?.active) g.position.copy(pathPos);
     whaleTrack.copy(g.position);
     WHALE_PATH.getTangentAt(u, tangent);
     WHALE_PATH.getTangentAt(Math.min(1, u + 0.02), ahead);
@@ -88,13 +105,36 @@ export function Whale() {
     const yaw = yawOf(tangent);
     const turn = MathUtils.euclideanModulo(yawOf(ahead) - yaw + Math.PI, Math.PI * 2) - Math.PI;
     const turnPerUnit = turn / (0.02 * PATH_LENGTH);
-    const pitch = MathUtils.clamp(Math.asin(tangent.y) * 0.8, -MAX_PITCH, MAX_PITCH) * settle;
-    const bank = MathUtils.clamp(-turnPerUnit * BANK_GAIN, -MAX_BANK, MAX_BANK) * settle;
-    euler.set(-pitch, yaw, bank);
+    let pitch = MathUtils.clamp(Math.asin(tangent.y) * 0.8, -MAX_PITCH, MAX_PITCH) * settle;
+    let bank = MathUtils.clamp(-turnPerUnit * BANK_GAIN, -MAX_BANK, MAX_BANK) * settle;
+    let heading = yaw;
+    let swimRate = 1;
+
+    // After the intro: the swim controller (cursor follow / idle figure-eight) takes over from
+    // the exact settled pose, so nothing jumps. Reduced motion: placed at home, held still.
+    if (t >= WHALE_SETTLED_AT) {
+      controller.current ??= new WhaleController(localBounds);
+      const c = controller.current;
+      if (!c.active) c.start(g.position, heading);
+      const pose = c.update(delta, g, state.scene, state.camera as PerspectiveCamera, state.size.width, state.size.height, clock.still);
+      g.position.copy(pose.position);
+      whaleTrack.copy(g.position);
+      heading = pose.yaw;
+      pitch = pose.pitch;
+      bank = pose.bank;
+      swimRate = pose.swimRate;
+    }
+    swim.update(clock.still ? 0 : delta * swimRate);
+    euler.set(-pitch, heading, bank);
     g.quaternion.setFromEuler(euler);
 
     const grow = power2InOut(clamp01((u - WHALE_GROW.from) / (WHALE_GROW.to - WHALE_GROW.from)));
-    g.scale.setScalar(MathUtils.lerp(WHALE_START_SCALE, WHALE_SCALE, grow));
+    g.scale.setScalar(MathUtils.lerp(WHALE_START_SCALE, WHALE_SCALE, grow) * (controller.current?.fit ?? 1));
+    if (controller.current?.active) {
+      controller.current.constrain(g, state.camera as PerspectiveCamera, state.size.width, state.size.height);
+      whaleTrack.copy(g.position);
+    }
+    if (keyLight.current) keyLight.current.intensity = MINI_KEY_LIGHT * grow * grow;
 
     // Minis pop on, front to back, as the whale settles.
     const popStart = WHALE_SWIM.start + MINIS_POP.at * WHALE_SWIM.duration;
@@ -107,6 +147,9 @@ export function Whale() {
   return (
     <group ref={group} visible={false}>
       <primitive object={whale} />
+      {/* Key light front-above the cargo deck (whale-local units): rakes across the minis'
+          corrugated sides and doors. Off while the whale is small/inside the container. */}
+      <pointLight ref={keyLight} position={[0.55, 0.95, 0.75]} intensity={0} distance={3} decay={2} color="#e6ecff" />
     </group>
   );
 }

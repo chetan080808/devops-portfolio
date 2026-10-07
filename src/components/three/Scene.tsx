@@ -11,6 +11,7 @@ import { Whale } from "./hero/Whale";
 import { IntroClock, IntroContext } from "./intro";
 import { IntroTicker } from "./IntroTicker";
 import { Lighting } from "./Lighting";
+import { usePointerFollow } from "./pointer";
 
 interface Props {
   mobile: boolean;
@@ -23,6 +24,8 @@ interface Props {
  */
 export function Scene({ mobile, reducedMotion }: Props) {
   const clock = useMemo(() => new IntroClock(reducedMotion), [reducedMotion]);
+  // Mouse-follow on desktop only (no mouse on mobile; nothing moves under reduced motion).
+  usePointerFollow(!mobile && !reducedMotion);
 
   return (
     <IntroContext value={clock}>

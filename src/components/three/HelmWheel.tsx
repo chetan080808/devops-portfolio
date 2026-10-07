@@ -3,20 +3,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { Mesh, MeshStandardMaterial, Vector3, type Group, type Object3D } from "three";
+import { Vector3, type Group } from "three";
 import { DRACO_PATH, MODELS } from "./assets";
 import { power2InOut, power3Out, span, useIntroClock } from "./intro";
 import { NODE_SCALE } from "./cluster/layout";
-import { cloneWithMaterials, disposeMaterials, isNeon } from "./materials";
+import { cloneWithMaterials, disposeMaterials, tunePart } from "./materials";
 
-/** Give every mesh under `part` its own copy of its neon material, then adjust it. */
-function tunePart(root: Object3D, part: string, adjust: (m: MeshStandardMaterial) => void) {
-  root.getObjectByName(part)?.traverse((o) => {
-    if (!(o instanceof Mesh) || Array.isArray(o.material) || !isNeon(o.material)) return;
-    o.material = o.material.clone();
-    adjust(o.material);
-  });
-}
 
 /**
  * Native helm_wheel.glb: 1.07 across incl. handles, lies in XY, hub at origin, spins about Z.

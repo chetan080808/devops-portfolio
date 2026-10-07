@@ -10,7 +10,8 @@ export function Hero() {
   return (
     <section id="top" className="relative flex min-h-[min(100svh,58rem)] items-center px-4 pt-28 pb-14 sm:px-6">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_1fr]">
-        <div>
+        {/* data-hero-text: the 3D whale keeps clear of this column's content (HeroStage) */}
+        <div data-hero-text>
           <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.02] px-3 py-1 font-mono text-[0.7rem] text-muted">
             <StatusDot accent="success" />
             {hero.eyebrow}
