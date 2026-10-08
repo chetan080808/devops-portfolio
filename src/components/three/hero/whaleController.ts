@@ -3,6 +3,10 @@ import { canvasOrigin, heroLayout } from "../heroLayout";
 import { pointer, pointerFollowing } from "../pointer";
 import { fromCanvasPx, toCanvasPx } from "../projection";
 import { SWIM } from "./choreography";
+import { whaleScreen } from "./tracking";
+import { DROP_PIN_AT, scrollStory } from "@/lib/scrollStory";
+
+const smooth = (t: number) => t * t * (3 - 2 * t);
 
 export interface SwimPose {
   position: Vector3;
@@ -42,16 +46,26 @@ export class WhaleController {
   private a = SWIM.side; // heading parameter, see SWIM.side
   private aVel = 0;
   private faceLeft = true;
+  private flipHold = 0;
   private theta = 0;
   private bobPhase = 0;
   private flickT = 0;
   private flickCooldown = 0;
   private wasOver = false;
   private frame = 0;
+  /** 4a: the cards have unpinned and scroll on; the whale goes with them */
+  private leaving = false;
+  /** Viewport px where the whale was when the transition started (it then only blends to the drop) */
+  private anchor: { x: number; y: number } | null = null;
+  /** Camera position last frame (to ride along with the scroll pan) */
+  private lastCam: Vector3 | null = null;
+  /** Current swim plane (world z) */
+  private z: number = SWIM.z;
   /** Canvas origin (page px) for this frame: hero geometry is stored in page coordinates */
   private o = { x: 0, y: 0 };
   /** Screen y (canvas px) of the cluster's top edge: helm wheel, nodes, container */
   private obstacleTop = Infinity;
+  private obstacleBottom = -Infinity;
   /**
    * Scale factor (≤ 1) applied on top of WHALE_SCALE when the gap between the navbar headroom
    * and the cluster is shorter than the whale (short laptop screens).
@@ -88,13 +102,52 @@ export class WhaleController {
     this.measure(whale, camera, w, h);
     this.updateFit(dt);
     const zone = this.zone(w, h);
-    const following = !still && pointerFollowing();
+    // 4a: as Deployments scrolls in, the whale leaves the hero and swims down above the cards.
+    const ap = heroLayout.fullBleed ? smooth(scrollStory.approach) : 0;
+    // The moment the transition starts, ONLY the drop choreography drives the whale: no cursor
+    // follow, no idle path. `calm` ramps the motion down to slow, level, profile-only swimming.
+    const dropMode = heroLayout.fullBleed && scrollStory.approach > 0.001;
+    const calm = dropMode ? MathUtils.clamp(scrollStory.approach * 10, 0, 1) : 0;
+    // The camera pans with the scroll (CameraRig). During the transition the whale rides along
+    // with that pan, so its spring only handles motion ON SCREEN: a slow, calm spring can then never
+    // be left behind by fast scrolling (it used to drop off the bottom when scrolling back up).
+    // (Not while leaving: then it stays put in the world and scrolls away with the cards.)
+    if (this.lastCam && dropMode && !this.leaving) {
+      const dx = camera.position.x - this.lastCam.x;
+      const dy = camera.position.y - this.lastCam.y;
+      const dz = camera.position.z - this.lastCam.z;
+      this.pos.x += dx;
+      this.pos.y += dy;
+      this.pos.z += dz;
+      whale.position.copy(this.pos);
+    }
+    (this.lastCam ??= new Vector3()).copy(camera.position);
+    if (!dropMode) {
+      this.leaving = false;
+      this.anchor = null;
+    } else if (!this.anchor) {
+      // Freeze where it was (viewport px): from here it only blends toward the drop point.
+      this.anchor = { x: centrePx.x, y: centrePx.y };
+    }
+    // Swim plane moves toward the camera during the transition: the whale passes in FRONT of the
+    // receding hero cluster instead of clipping through it.
+    this.z = MathUtils.lerp(SWIM.z, SWIM.drop.z, ap);
+    const following = !still && !dropMode && pointerFollowing();
 
     // ── Target (px → world on the swim plane)
-    if (following) {
-      const cx = pointer.client.x + window.scrollX - this.o.x;
-      const cy = pointer.client.y + window.scrollY - this.o.y;
-      px.set(MathUtils.clamp(cx, zone.x0, zone.x1), MathUtils.clamp(cy, zone.y0, zone.y1));
+    if (this.anchor) {
+      px.set(this.anchor.x, this.anchor.y);
+    } else if (following) {
+      // The cursor's position across the whole visible hero maps onto the roaming band, so every
+      // mouse move (up/down, left/right) clearly moves the whale.
+      const L = heroLayout;
+      const hx0 = L.hero.x0 - window.scrollX;
+      const hx1 = L.hero.x1 - window.scrollX;
+      const hy0 = Math.max(L.navBottom, L.hero.y0 - window.scrollY);
+      const hy1 = Math.min(window.innerHeight, L.hero.y1 - window.scrollY);
+      const nx = MathUtils.clamp((pointer.client.x - hx0) / Math.max(1, hx1 - hx0), 0, 1);
+      const ny = MathUtils.clamp((pointer.client.y - hy0) / Math.max(1, hy1 - hy0), 0, 1);
+      px.set(MathUtils.lerp(zone.x0, zone.x1, nx), MathUtils.lerp(zone.y0, zone.y1, ny));
     } else {
       if (!still) this.theta += ((Math.PI * 2) / SWIM.idle.period) * dt;
       const homeX = MathUtils.clamp(SWIM.idle.homeX * heroLayout.viewportW + window.scrollX - this.o.x, zone.x0, zone.x1);
@@ -107,10 +160,24 @@ export class WhaleController {
         MathUtils.clamp(homeY + SWIM.idle.y * Math.sin(2 * this.theta), zone.y0, zone.y1),
       );
     }
-    fromCanvasPx(px.x, px.y, SWIM.z, camera, w, h, targetWorld);
+    if (ap > 0) {
+      const g = this.grid();
+      if (g) {
+        const r = g.getBoundingClientRect();
+        // Over the right-hand card: the section heading and intro text are left-aligned, so the
+        // whale never covers them while it hovers above the cards.
+        const dx = Math.min(r.left + r.width * SWIM.drop.x, r.right - this.ext.right - SWIM.rightMargin);
+        // After the cards unpin and scroll on, the whale leaves with them (fading under the navbar).
+        this.leaving = r.top < window.innerHeight * DROP_PIN_AT - 4;
+        const above = r.top - SWIM.drop.gap - this.ext.down;
+        const dy = this.leaving ? above : Math.max(above, heroLayout.navBottom + SWIM.headroom + this.ext.up);
+        px.set(MathUtils.lerp(px.x, dx, ap), MathUtils.lerp(px.y, dy, ap));
+      }
+    }
+    fromCanvasPx(px.x, px.y, this.z, camera, w, h, targetWorld);
     if (!still) {
       this.bobPhase += ((Math.PI * 2) / SWIM.bob.period) * dt;
-      targetWorld.y += SWIM.bob.amplitude * Math.sin(this.bobPhase);
+      targetWorld.y += SWIM.bob.amplitude * (1 - 0.6 * calm) * Math.sin(this.bobPhase);
     }
 
     // ── Position spring
@@ -118,56 +185,61 @@ export class WhaleController {
       this.pos.copy(targetWorld);
       this.vel.set(0, 0, 0);
     } else {
-      const { stiffness: k, damping: c } = SWIM.spring;
+      const k = MathUtils.lerp(SWIM.spring.stiffness, SWIM.calm.stiffness, calm);
+      const c = MathUtils.lerp(SWIM.spring.damping, SWIM.calm.damping, calm);
       this.vel.x += (k * (targetWorld.x - this.pos.x) - c * this.vel.x) * dt;
       this.vel.y += (k * (targetWorld.y - this.pos.y) - c * this.vel.y) * dt;
       this.vel.z = 0;
-      if (this.vel.length() > SWIM.maxSpeed) this.vel.setLength(SWIM.maxSpeed);
+      const maxSpeed = MathUtils.lerp(SWIM.maxSpeed, SWIM.calm.maxSpeed, calm);
+      if (this.vel.length() > maxSpeed) this.vel.setLength(maxSpeed);
       this.pos.addScaledVector(this.vel, dt);
-      this.pos.z = SWIM.z;
+      this.pos.z = this.z;
     }
 
-    // ── Hard limits: keep the centre inside the zone (so the box never crosses text/navbar)
+    // ── Hard limits: keep the centre inside the zone (so the box never crosses text/navbar).
+    // Drop mode: the hero has scrolled away, only the navbar headroom still applies.
     toCanvasPx(this.pos, camera, w, h, centrePx);
-    const cx = MathUtils.clamp(centrePx.x, zone.x0, zone.x1);
-    const cy = MathUtils.clamp(centrePx.y, zone.y0, zone.y1);
+    const cx = dropMode ? centrePx.x : MathUtils.clamp(centrePx.x, zone.x0, zone.x1);
+    const cy = dropMode
+      ? this.leaving
+        ? centrePx.y
+        : Math.max(centrePx.y, zone.y0)
+      : MathUtils.clamp(centrePx.y, zone.y0, zone.y1);
     if (cx !== centrePx.x || cy !== centrePx.y) {
-      fromCanvasPx(cx, cy, SWIM.z, camera, w, h, clampedWorld);
+      fromCanvasPx(cx, cy, this.z, camera, w, h, clampedWorld);
       if (cx !== centrePx.x) this.vel.x = 0;
       if (cy !== centrePx.y) this.vel.y = 0;
       this.pos.x = clampedWorld.x;
       this.pos.y = clampedWorld.y;
     }
 
-    // ── Heading: face the direction of travel; when (nearly) still, face the cursor
+    // ── Heading: face the direction of travel (keeps its last direction when still)
     const speed = Math.hypot(this.vel.x, this.vel.y);
-    if (Math.abs(this.vel.x) > 0.35) this.faceLeft = this.vel.x < 0;
-    else if (following) {
-      fromCanvasPx(
-        pointer.client.x + window.scrollX - this.o.x,
-        centrePx.y,
-        SWIM.z,
-        camera,
-        w,
-        h,
-        clampedWorld,
-      );
-      const dx = clampedWorld.x - this.pos.x;
-      if (Math.abs(dx) > 0.3) this.faceLeft = dx < 0;
-    }
+    // Flip only on a clear, sustained change of direction (no flip-flopping through "away").
+    // Transition (4a): face left, toward the cards the minis drop into — no other turns.
+    const wantLeft = dropMode || this.vel.x < 0;
+    if ((dropMode || Math.abs(this.vel.x) > 0.5) && wantLeft !== this.faceLeft) {
+      this.flipHold += dt;
+      if (this.flipHold > 0.12) {
+        this.faceLeft = wantLeft;
+        this.flipHold = 0;
+      }
+    } else this.flipHold = 0;
     const aTarget = this.faceLeft ? SWIM.side : -SWIM.side;
     if (still) {
       this.a = aTarget;
       this.aVel = 0;
     } else {
-      this.aVel += (SWIM.turn.stiffness * (aTarget - this.a) - SWIM.turn.damping * this.aVel) * dt;
+      const tk = MathUtils.lerp(SWIM.turn.stiffness, SWIM.calm.turnStiffness, calm);
+      const tc = MathUtils.lerp(SWIM.turn.damping, SWIM.calm.turnDamping, calm);
+      this.aVel += (tk * (aTarget - this.a) - tc * this.aVel) * dt;
       this.a = MathUtils.clamp(this.a + this.aVel * dt, -SWIM.side - 0.1, SWIM.side + 0.1);
     }
 
     // ── Hover tail flick: once each time the cursor touches the whale (not while it rests on it)
     this.flickCooldown -= dt;
     this.flickT = Math.max(0, this.flickT - dt);
-    const over = !still && pointer.enabled && pointer.inside && this.hovered();
+    const over = !still && !dropMode && pointer.enabled && pointer.inside && this.hovered();
     if (over && !this.wasOver && this.flickCooldown <= 0) {
       this.flickT = SWIM.flick.duration;
       this.flickCooldown = SWIM.flick.cooldown;
@@ -176,11 +248,22 @@ export class WhaleController {
     const flick = this.flickT / SWIM.flick.duration; // 1 → 0
     const flickRoll = flick > 0 ? SWIM.flick.roll * Math.sin((1 - flick) * Math.PI * 4) * flick : 0;
 
-    const pitch = MathUtils.clamp(Math.atan2(this.vel.y, Math.max(Math.abs(this.vel.x), 0.6)) * 0.8, -SWIM.maxPitch, SWIM.maxPitch);
-    const bank = MathUtils.clamp(this.aVel * SWIM.bankGain, -SWIM.maxBank, SWIM.maxBank) + flickRoll;
+    // Pitch only reads well in profile: seen from behind it looks like "pointing straight up",
+    // so it fades out as the heading passes through "away from camera" (a → 0). Same for bank.
+    const profile = Math.pow(Math.min(1, Math.abs(Math.sin(this.a)) / Math.sin(SWIM.side)), 2);
+    // During the transition: level — pitch and roll fade to ~0.
+    const level = 1 - 0.92 * calm;
+    const pitch =
+      MathUtils.clamp(Math.atan2(this.vel.y, Math.max(Math.abs(this.vel.x), 0.6)) * 0.8, -SWIM.maxPitch, SWIM.maxPitch) *
+      profile *
+      level;
+    const bank =
+      (MathUtils.clamp(this.aVel * SWIM.bankGain, -SWIM.maxBank, SWIM.maxBank) * (0.4 + 0.6 * profile) + flickRoll) * level;
     const swimRate = still
       ? 0
-      : 1 + 0.9 * Math.min(1, speed / 2) + 0.5 * Math.min(1, Math.abs(this.aVel) / 3) + SWIM.flick.tailBoost * flick;
+      : 1 +
+        (0.9 * Math.min(1, speed / 2) + 0.5 * Math.min(1, Math.abs(this.aVel) / 3)) * (1 - 0.7 * calm) +
+        SWIM.flick.tailBoost * flick;
 
     return { position: this.pos, yaw: Math.PI + this.a, pitch, bank, swimRate };
   }
@@ -195,16 +278,17 @@ export class WhaleController {
     if (!L.fullBleed) return;
     this.measure(whale, camera, w, h);
     const o = canvasOrigin();
-    const dx = Math.max(0, L.text.x1 - o.x + LIMITS.textGap - this.screenBox.x0);
-    let dy = Math.max(0, L.navBottom - o.y + LIMITS.headroom - this.screenBox.y0);
-    if (dy === 0) {
+    const dropMode = smooth(scrollStory.approach) > 0.02;
+    const dx = dropMode ? 0 : Math.max(0, L.text.x1 - o.x + LIMITS.textGap - this.screenBox.x0);
+    let dy = this.leaving ? 0 : Math.max(0, L.navBottom + LIMITS.headroom - this.screenBox.y0);
+    if (dy === 0 && !dropMode) {
       // Above the cluster: push up, but never into the headroom.
       const over = this.screenBox.y1 - (this.obstacleTop - SWIM.clusterGap);
-      const room = this.screenBox.y0 - (L.navBottom - o.y + LIMITS.headroom);
+      const room = this.screenBox.y0 - (L.navBottom + LIMITS.headroom);
       if (over > 0) dy = -Math.min(over, Math.max(0, room));
     }
     if (dx === 0 && dy === 0) return;
-    fromCanvasPx(centrePx.x + dx, centrePx.y + dy, SWIM.z, camera, w, h, clampedWorld);
+    fromCanvasPx(centrePx.x + dx, centrePx.y + dy, this.z, camera, w, h, clampedWorld);
     this.pos.x = clampedWorld.x;
     this.pos.y = clampedWorld.y;
     if (dx > 0) this.vel.x = Math.max(0, this.vel.x);
@@ -214,9 +298,17 @@ export class WhaleController {
     this.measure(whale, camera, w, h);
   }
 
+  private gridEl: HTMLElement | null = null;
+  /** The project grid the minis drop into (4a) */
+  private grid() {
+    if (!this.gridEl?.isConnected) this.gridEl = document.querySelector<HTMLElement>("[data-project-grid]");
+    return this.gridEl;
+  }
+
   /** Top edge (canvas px) of everything the whale must stay above. Cheap; refreshed every 20 frames. */
   private measureObstacles(scene: Object3D, camera: PerspectiveCamera, w: number, h: number) {
     let top = Infinity;
+    let bottom = -Infinity;
     scene.traverse((o) => {
       if (!OBSTACLES.has(o.name) || !o.visible) return;
       obstacleBox.setFromObject(o);
@@ -227,20 +319,32 @@ export class WhaleController {
           i & 2 ? obstacleBox.max.y : obstacleBox.min.y,
           i & 4 ? obstacleBox.max.z : obstacleBox.min.z,
         );
-        top = Math.min(top, toCanvasPx(corner, camera, w, h, px).y);
+        const y = toCanvasPx(corner, camera, w, h, px).y;
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
       }
     });
     this.obstacleTop = top;
+    this.obstacleBottom = bottom;
   }
 
   /** Shrink (never grow past 1) so the whale fits between the headroom and the cluster. */
   private updateFit(dt: number) {
     const L = heroLayout;
     if (!L.fullBleed || !Number.isFinite(this.obstacleTop)) return;
-    const room = this.obstacleTop - SWIM.clusterGap - (L.navBottom - this.o.y + SWIM.headroom) - 2 * SWIM.bob.px;
+    const room =
+      this.obstacleTop - SWIM.clusterGap - (L.navBottom + SWIM.headroom) - 2 * SWIM.bob.px - SWIM.minTravelY;
     const height = this.ext.up + this.ext.down;
     if (height <= 0) return;
-    const target = MathUtils.clamp((this.fit * room) / height, SWIM.minFit, 1);
+    let target = MathUtils.clamp((this.fit * room) / height, SWIM.minFit, 1);
+    // Drop mode: fit between the navbar headroom and the top of the project cards instead.
+    const ap = smooth(scrollStory.approach);
+    const g = ap > 0 ? this.grid() : null;
+    if (g) {
+      const roomDrop = g.getBoundingClientRect().top - SWIM.drop.gap - (L.navBottom + SWIM.headroom) - 2 * SWIM.bob.px;
+      const dropTarget = MathUtils.clamp((this.fit * roomDrop) / height, SWIM.minFit, SWIM.drop.maxFit);
+      target = MathUtils.lerp(target, dropTarget, ap);
+    }
     // Shrink quickly (it must never touch the cluster), grow back slowly.
     this.fit += (target - this.fit) * Math.min(1, dt * (target < this.fit ? 10 : 2));
   }
@@ -265,6 +369,7 @@ export class WhaleController {
       y1 = Math.max(y1, px.y);
     }
     Object.assign(this.screenBox, { x0, y0, x1, y1 });
+    Object.assign(whaleScreen, { x0, y0, x1, y1, on: true });
     whale.getWorldPosition(corner);
     toCanvasPx(corner, camera, w, h, centrePx);
     this.ext = { left: centrePx.x - x0, right: x1 - centrePx.x, up: centrePx.y - y0, down: y1 - centrePx.y };
@@ -277,11 +382,11 @@ export class WhaleController {
     const right = L.fullBleed ? Math.min(w, L.viewportW + window.scrollX - o.x) : w;
     const x0 = (L.fullBleed ? L.text.x1 - o.x + SWIM.textGap : 0) + this.ext.left;
     const x1 = Math.max(x0, right - SWIM.rightMargin - this.ext.right);
-    const y0 = (L.fullBleed ? L.navBottom - o.y + SWIM.headroom : 0) + this.ext.up;
+    const y0 = (L.fullBleed ? L.navBottom + SWIM.headroom : 0) + this.ext.up;
     // Headroom wins over the fold if both can't be met.
     // Never down over the cluster / helm wheel; the fold bounds it too. Headroom wins a conflict
     // (the whale shrinks to fit instead, see updateFit).
-    const floor = (L.fullBleed ? L.foldBottom - o.y : h) - SWIM.foldMargin;
+    const floor = h - SWIM.foldMargin;
     const clusterFloor = L.fullBleed ? this.obstacleTop - SWIM.clusterGap : Infinity;
     const y1 = Math.max(y0, Math.min(floor, clusterFloor) - this.ext.down);
     return { x0, x1, y0, y1 };

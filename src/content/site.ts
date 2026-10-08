@@ -128,6 +128,7 @@ export const site: SiteContent = {
       title: "TODO: Degree / Program",
       org: "TODO: University",
       period: "20XX – 20XX",
+      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
       summary: "Where the foundations were compiled.",
       highlights: ["TODO: relevant coursework or achievement"],
     },
@@ -137,6 +138,7 @@ export const site: SiteContent = {
       title: "TODO: Certification / Bootcamp",
       org: "TODO: Issuer",
       period: "20XX",
+      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
       summary: "Skills validated under test.",
       highlights: ["TODO: e.g. AWS / CKA / Terraform"],
     },
@@ -146,6 +148,7 @@ export const site: SiteContent = {
       title: "TODO: DevOps Engineer",
       org: "TODO: Company",
       period: "20XX – Present",
+      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
       summary: "Shipped to production.",
       highlights: ["TODO: biggest win", "TODO: second win"],
     },
@@ -155,11 +158,19 @@ export const site: SiteContent = {
       title: "Platform Engineering",
       org: "Continuous improvement",
       period: "Now",
+      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
       summary: "Observing, iterating, leveling up.",
       highlights: ["TODO: what you're learning or building next"],
       current: true,
     },
   ],
+
+  pipeline: {
+    job: "career-pipeline",
+    branch: "main",
+    // The side-projects branch lists the projects above, running in parallel with this stage
+    parallel: { label: "side-projects", alongside: "role-1" },
+  },
 
   dashboard: [
     // Only claims you can back up. Numeric values stay `null` (renders "No data")

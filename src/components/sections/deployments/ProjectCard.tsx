@@ -13,7 +13,13 @@ export function ProjectCard({ project, index, onInspect }: {
   const extra = project.stack.length - MAX_CHIPS;
 
   return (
-    <article className="glass group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-500 ease-premium hover:-translate-y-1 hover:border-cyan/30 hover:glow-edge">
+    // data-landed: "true" once this project's mini has landed (4a). Server HTML = landed (final
+    // state), so mobile / reduced motion / no-JS show the real status straight away.
+    <article
+      data-landed="true"
+      data-running={project.status === "Running" ? "true" : "false"}
+      className="glass group/card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-500 ease-premium hover:-translate-y-1 hover:border-cyan/30 hover:glow-edge"
+    >
       {/* top "container" rail */}
       <div
         aria-hidden="true"
@@ -24,13 +30,18 @@ export function ProjectCard({ project, index, onInspect }: {
         <p className="truncate font-mono text-[0.7rem] text-faint">
           deploy/{project.id} · rev {index + 1}
         </p>
-        <Badge accent={project.status === "Running" ? "success" : "warning"}>{project.status}</Badge>
+        {/* Before its container lands: "Pending"; after: the project's real status */}
+        <span className="hidden group-data-[landed=false]/card:inline">
+          <Badge accent="warning">Pending</Badge>
+        </span>
+        <span className="group-data-[landed=false]/card:hidden">
+          <Badge accent={project.status === "Running" ? "success" : "warning"}>{project.status}</Badge>
+        </span>
       </div>
 
-      <div className="mt-5 flex items-start justify-between gap-4">
-        <h3 className="text-xl font-semibold tracking-tight text-fg">{project.name}</h3>
-        <MiniSlot index={index} />
-      </div>
+      <MiniSlot index={index} />
+
+      <h3 className="mt-5 text-xl font-semibold tracking-tight text-fg">{project.name}</h3>
       <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{project.impact}</p>
 
       <ul className="mt-6 flex flex-wrap gap-1.5" aria-label="Tech stack">

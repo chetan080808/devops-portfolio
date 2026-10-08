@@ -1,0 +1,126 @@
+"use client";
+
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { site } from "@/content/site";
+import { cn } from "@/lib/cn";
+import { ConsolePanel } from "./ConsolePanel";
+import { StageGraph } from "./StageGraph";
+import { StageView } from "./StageView";
+import { buildStages, jobRunning, type PipelineStage } from "./model";
+import { applyRun } from "./runState";
+
+/*
+ * Single source of truth: every stage's state lives in `data-status` ("queued" | "running" |
+ * "passed") on each element tagged `data-stage-id` (graph nodes AND table cells), and the header
+ * count is recomputed from the same states. PipelineScroll drives them while the job is pinned;
+ * server HTML carries the final state. Variant classes are written out in full on purpose:
+ * Tailwind only generates classes it finds literally in the source.
+ */
+
+/** Jenkins-style job view of the career pipeline (Blue Ocean graph + classic Stage View). */
+export function JenkinsJob() {
+  const stages = useMemo(() => buildStages(), []);
+  const [open, setOpen] = useState<PipelineStage | null>(null);
+  const close = useCallback(() => setOpen(null), [setOpen]);
+  const running = jobRunning();
+  const mainStages = stages.filter((s) => !s.parallelTo);
+  const passed = mainStages.filter((s) => s.final === "passed").length;
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Re-derive every status after each render (React would otherwise show the final states).
+  useLayoutEffect(() => applyRun(ref.current));
+
+  // Classic Stage View "in progress" stripes, animated (WAAPI: no extra CSS keyframes needed).
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const anims = Array.from(ref.current?.querySelectorAll<HTMLElement>("[data-stripes]") ?? []).map((el) =>
+      el.animate([{ backgroundPosition: "0 0" }, { backgroundPosition: "28.28px 0" }], { duration: 900, iterations: Infinity }),
+    );
+    return () => anims.forEach((a) => a.cancel());
+  }, []);
+
+  return (
+    <div ref={ref} data-jenkins className="glass overflow-hidden rounded-2xl">
+      {/* Job header */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line px-5 py-3">
+        <p className="font-mono text-sm text-fg">
+          {site.pipeline.job} <span className="text-faint">»</span> {site.pipeline.branch}{" "}
+          <span className="text-faint">·</span> <span className="text-cyan">Build #{site.experience.length}</span>
+        </p>
+        <p className="flex items-center gap-2 font-mono text-xs">
+          {running ? (
+            <>
+              <span aria-hidden="true" className="size-3 animate-spin rounded-full border-2 border-[#4a90e2] border-t-transparent" />
+              <span className="text-[#6aa9f0]">In progress</span>
+            </>
+          ) : (
+            <span className="text-success">✓ Success</span>
+          )}
+          <span className="text-muted">
+            · <span data-passed-count>{passed}/{mainStages.length} stages passed</span>
+          </span>
+        </p>
+      </div>
+
+      <StageGraph stages={stages} onOpen={setOpen} />
+      <StageView stages={stages} onOpen={setOpen} />
+
+      <ConsolePanel stage={open} onClose={close} />
+    </div>
+  );
+}
+
+/** Blue Ocean node: solid green + white check (passed), blue + spinner (running), grey ring (queued). */
+export function StageNode({
+  stage,
+  onOpen,
+  className,
+  style,
+  layout = "column",
+}: {
+  stage: PipelineStage;
+  onOpen: (s: PipelineStage) => void;
+  className?: string;
+  style?: CSSProperties;
+  layout?: "column" | "row";
+}) {
+  return (
+    <button
+      type="button"
+      data-stage-id={stage.id}
+      data-status={stage.final}
+      data-final={stage.final}
+      data-slot={stage.slot}
+      {...(stage.parallelTo ? {} : { "data-main": "" })}
+      onClick={() => onOpen(stage)}
+      aria-label={`${stage.label}: open console output`}
+      style={style}
+      className={cn(
+        "group/st flex items-center gap-3 rounded-lg",
+        layout === "column" ? "flex-col gap-1.5 text-center" : "text-left",
+        className,
+      )}
+    >
+      <span
+        className={cn(
+          "relative flex size-7 shrink-0 items-center justify-center rounded-full border-2",
+          "group-data-[status=queued]/st:border-[#8b95a8] group-data-[status=queued]/st:bg-bg",
+          "group-data-[status=passed]/st:border-[#2fa84f] group-data-[status=passed]/st:bg-[#2fa84f]",
+          "group-data-[status=running]/st:border-[#4a90e2] group-data-[status=running]/st:bg-[#4a90e2]",
+          "group-hover/st:ring-2 group-hover/st:ring-cyan/50 group-focus-visible/st:ring-2 group-focus-visible/st:ring-cyan",
+        )}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true" className="hidden size-3.5 text-white group-data-[status=passed]/st:block">
+          <path d="M3.5 8.5 L6.5 11.5 L12.5 4.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span aria-hidden="true" className="hidden size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent group-data-[status=running]/st:block" />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-mono text-xs text-fg">{stage.label}</span>
+        <span className={cn("block truncate text-[0.7rem] text-muted", layout === "column" && "mx-auto max-w-[10.5rem]")}>
+          {stage.milestone ? stage.milestone.title : `${site.projects.length} jobs`}
+        </span>
+      </span>
+    </button>
+  );
+}

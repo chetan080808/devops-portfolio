@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { AnimationMixer, Box3, Euler, MathUtils, MeshStandardMaterial, Vector3, type Group, type Mesh, type PerspectiveCamera, type PointLight } from "three";
+import { AnimationMixer, Box3, Euler, Quaternion, MathUtils, MeshStandardMaterial, Vector3, type Group, type Mesh, type PerspectiveCamera, type PointLight } from "three";
 import { site } from "@/content/site";
 import { DRACO_PATH, MODELS } from "../assets";
 import { clamp01, power2InOut, span, useIntroClock } from "../intro";
@@ -13,7 +13,6 @@ import {
   DOORS,
   MAX_BANK,
   MAX_PITCH,
-  MINIS_POP,
   WHALE_GROW,
   WHALE_PATH,
   WHALE_SCALE,
@@ -24,6 +23,7 @@ import {
 import { MINI_SCALE, attachMinis, miniRegistry } from "./minis";
 import { whaleTrack } from "./tracking";
 import { WhaleController } from "./whaleController";
+import { scrollStory } from "@/lib/scrollStory";
 
 const HIDE_COLOR = "#1c1f33";
 const MINI_KEY_LIGHT = 4;
@@ -32,13 +32,16 @@ const MINI_TOP = 0.22;
 const PATH_LENGTH = WHALE_PATH.getLength();
 const tangent = new Vector3();
 const pathPos = new Vector3();
+const camFwd = new Vector3();
+const lineOfSight = new Vector3();
+const offAxis = new Quaternion();
+const identity = new Quaternion();
 const ahead = new Vector3();
 const euler = new Euler(0, 0, 0, "YXZ");
 
 /** Heading (yaw about +Y) of a direction, for a model that faces +Z. */
 const yawOf = (d: Vector3) => Math.atan2(d.x, d.z);
-/** Back-out easing for the minis' pop. */
-const backOut = (t: number) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
+
 
 /**
  * The whale swims out of the container small, grows to full size along a banking path,
@@ -131,6 +134,17 @@ export function Whale() {
     swim.update(clock.still ? 0 : delta * swimRate);
     euler.set(-pitch, heading, bank);
     g.quaternion.setFromEuler(euler);
+    // 4a: once the hero scrolls away, the lens-shifted hero camera sees the whale far off its
+    // optical axis (steeply from above) — turn the whale with the line of sight so it reads as if
+    // seen straight on, like at the hero.
+    const ap = scrollStory.approach;
+    if (ap > 0 && controller.current?.active) {
+      const cam = state.camera;
+      camFwd.set(0, 0, -1).applyQuaternion(cam.quaternion);
+      lineOfSight.subVectors(g.position, cam.position).normalize();
+      offAxis.setFromUnitVectors(camFwd, lineOfSight);
+      g.quaternion.premultiply(identity.clone().slerp(offAxis, ap * ap * (3 - 2 * ap)));
+    }
 
     const grow = power2InOut(clamp01((u - WHALE_GROW.from) / (WHALE_GROW.to - WHALE_GROW.from)));
     g.scale.setScalar(MathUtils.lerp(WHALE_START_SCALE, WHALE_SCALE, grow) * (controller.current?.fit ?? 1));
@@ -141,11 +155,8 @@ export function Whale() {
     if (keyLight.current) keyLight.current.intensity = MINI_KEY_LIGHT * grow * grow;
 
     // Minis pop on, front to back, as the whale settles.
-    const popStart = WHALE_SWIM.start + MINIS_POP.at * WHALE_SWIM.duration;
-    minis.forEach(({ object }, i) => {
-      const p = span(t, popStart + i * MINIS_POP.stagger, MINIS_POP.duration);
-      object.scale.setScalar(p > 0 ? MINI_SCALE * backOut(p) : 0);
-    });
+    // Minis ride from the start (children of the whale, so they scale with it while it's small).
+    minis.forEach(({ object }) => object.scale.setScalar(MINI_SCALE));
   });
 
   return (

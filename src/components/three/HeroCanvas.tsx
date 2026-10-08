@@ -30,6 +30,9 @@ export default function HeroCanvas({ mobile, reducedMotion, drop, active }: Prop
       gl={{ antialias: !mobile, alpha: true, powerPreference: "high-performance" }}
       camera={{ position: [0, 6.9, 12.8], fov: 32, near: 0.1, far: 60 }}
       aria-hidden="true"
+      // Never intercept clicks: on desktop this canvas is fixed over the whole page. (R3F sets
+      // pointer-events: auto on its wrapper by default.) The scene reads the mouse from window.
+      style={{ pointerEvents: "none" }}
       // Shader info-log checks cost compile time and surface harmless driver warnings (ANGLE X4122).
       onCreated={({ gl }) => (gl.debug.checkShaderErrors = process.env.NODE_ENV !== "production")}
     >

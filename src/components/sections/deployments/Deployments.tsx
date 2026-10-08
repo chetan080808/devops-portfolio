@@ -13,7 +13,11 @@ export function Deployments() {
         Each project ships as its own container. Inspect one to see the problem, architecture and results.
       </SectionHeader>
       <p className="mb-6 font-mono text-xs text-faint">
-        NAME · READY · STATUS — <span className="text-success">{running}/{site.projects.length} running</span>
+        NAME · READY · STATUS —{" "}
+        {/* Counts up as each container lands during the 4a drop (MiniDropScroll) */}
+        <span className="text-success" data-running-count aria-live="polite">
+          {running}/{site.projects.length} running
+        </span>
       </p>
       <ProjectGrid projects={site.projects} />
       <MiniDropScroll />

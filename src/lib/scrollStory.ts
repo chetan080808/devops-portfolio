@@ -3,17 +3,25 @@
  * every frame by the 3D scene. Plain module: no React, no three.
  */
 export const scrollStory = {
-  /** 4a: minis travel from the whale's back into the project cards */
+  /** 4a: hero → Deployments: the whale leaves the hero and swims down above the project cards */
+  approach: 0,
+  /** 4a: (pinned) minis detach one by one and drop into the project cards */
   drop: 0,
   /** True while the 3D drop is active (desktop, motion allowed); cards then hide their 2D icon */
   dropActive: false,
 };
 
-/** Share of the drop progress between one mini leaving the whale and the next */
-export const DROP_STAGGER = 0.16;
+/** 4a: the project cards pin with their top at this share of the viewport height */
+export const DROP_PIN_AT = 0.6;
 
-/** 0–1 progress of mini `i` (of `n`) for overall drop progress `p`. */
+/**
+ * Each mini gets an equal slot of the pinned scroll: it flies during the first DROP_FLIGHT of its
+ * slot, then there's a clear pause before the next one leaves the whale.
+ */
+export const DROP_FLIGHT = 0.62;
+
+/** 0–1 flight progress of mini `i` (of `n`) for overall drop progress `p`. */
 export function miniDropProgress(p: number, i: number, n: number) {
-  const span = Math.max(0.2, 1 - DROP_STAGGER * (n - 1));
-  return Math.min(1, Math.max(0, (p - i * DROP_STAGGER) / span));
+  const slot = 1 / Math.max(1, n);
+  return Math.min(1, Math.max(0, (p - i * slot) / (slot * DROP_FLIGHT)));
 }

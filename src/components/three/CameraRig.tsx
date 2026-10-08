@@ -17,6 +17,7 @@ const BLEED_X = 0.09;
 const BLEED_Y = 0.07;
 
 const position = new Vector3();
+const camUp = new Vector3();
 const target = new Vector3();
 
 /** Eased value of a piecewise schedule at time t (holds the ends). */
@@ -58,6 +59,20 @@ export function CameraRig() {
     if (camera instanceof PerspectiveCamera) frameCamera(camera, state.size.width, state.size.height);
     camera.position.copy(position);
     camera.lookAt(target);
+
+    // Desktop scroll: PAN the camera down (along its own up axis) by the scroll distance, measured
+    // in world units at the cluster's depth, instead of lens-shifting. The hero scene scrolls away
+    // with the page (plus a touch of parallax), and anything that stays on screen — the whale in
+    // 4a — stays near the optical axis, so it never gets the stretched, steep off-axis look.
+    if (heroLayout.fullBleed && camera instanceof PerspectiveCamera && camera.view?.enabled) {
+      const dist = position.distanceTo(target);
+      const worldPerPx = (2 * dist * Math.tan(MathUtils.degToRad(camera.fov) / 2)) / camera.view.fullHeight;
+      camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+      camera.position.addScaledVector(camUp, -window.scrollY * worldPerPx);
+    }
+    // lookAt() refreshed matrixWorld BEFORE the pan; everything that projects with this camera later
+    // this frame (whale controller, minis) must see the final pose.
+    camera.updateMatrixWorld();
   });
 
   return null;
@@ -72,9 +87,9 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-4;
  */
 function frameCamera(camera: PerspectiveCamera, w: number, h: number) {
   const { fullBleed, stage: page } = heroLayout;
-  // Stage in canvas px. The desktop canvas is fixed to the viewport, so this follows the scroll
-  // and the hero scene scrolls with the page.
-  const o = canvasOrigin();
+  // Stage in canvas px, framed as at scroll 0: scrolling is a camera pan (see CameraRig), not a
+  // lens shift. (Mobile: the canvas lives in the stage, so its origin is the stage's.)
+  const o = fullBleed ? { x: window.scrollX, y: 0 } : canvasOrigin();
   const sx0 = page.x0 - o.x;
   const sy0 = page.y0 - o.y;
   const stageW = page.x1 - page.x0;

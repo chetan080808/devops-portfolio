@@ -27,9 +27,12 @@ export const CONTAINER_IDLE = { start: 6.2, duration: 1.2, level: 0.55 };
 /** Hero container neon vs the standard level, so it still reads in the pulled-back overview. */
 export const CONTAINER_NEON_BOOST = 2.2;
 
+/** Camera home is pulled back by this factor (see CAMERA_HOME); the whale scales up to match. */
+export const HOME_ZOOM = 1.4;
+
 // ── Whale ─────────────────────────────────────────────────────────────────
 /** Full size in the hero (whale.glb is 2.83 long natively → ~4.5 world units): the centerpiece. */
-export const WHALE_SCALE = 1.88;
+export const WHALE_SCALE = 1.88 * HOME_ZOOM;
 /**
  * Absolute scale inside the container ("scale cheat"): 0.79 long × 0.32 wide, so it fits the
  * container's ~1.0 × 0.38 interior. Grows to WHALE_SCALE as it swims out.
@@ -62,10 +65,11 @@ export const SWIM = {
    * never faces the camera head-on (|a| ≤ side + 0.1 < π).
    */
   side: Math.PI / 2 + 0.27,
-  turn: { stiffness: 13, damping: 6.2 },
+  /** Stiff, near-critically damped: the "away from camera" part of a turn passes in ~0.3 s */
+  turn: { stiffness: 42, damping: 12.5 },
   bankGain: 0.2,
-  maxBank: 0.45,
-  maxPitch: 0.38, // ~22°
+  maxBank: 0.3,
+  maxPitch: 0.35, // ~20°
   /** Hard layout limits (canvas px), with margin over the 32 / 40 px spec for frame lag + bob */
   textGap: 34,
   headroom: 46,
@@ -75,6 +79,12 @@ export const SWIM = {
   clusterGap: 16,
   /** Smallest shrink-to-fit factor on short screens */
   minFit: 0.7,
+  /** 4a transition: slow, critically damped spring + gentle turns (no overshoot, no twisting) */
+  calm: { stiffness: 2.2, damping: 3.0, maxSpeed: 1.6, turnStiffness: 5, turnDamping: 4.5 },
+  /** 4a: hover this far above the project cards while the minis drop; max size there */
+  drop: { gap: 26, maxFit: 0.95, z: 1.2, x: 0.74 },
+  /** Vertical swimming room (px) the shrink-to-fit always leaves on short screens */
+  minTravelY: 90,
   /** Idle figure-eight around home (px), home centre at this share of the viewport width */
   idle: { period: 14, x: 70, y: 16, homeX: 0.575 },
   bob: { amplitude: 0.07, period: 3.6, px: 6 },
@@ -141,11 +151,15 @@ export interface CameraKey {
 export const CAMERA_FIT = { hfov: 46, minVfov: 33, maxVfov: 50 };
 
 /** Overview framing (cluster in the lower half, whale hover above). */
+/**
+ * ~14° above the scene. Pulled back (×HOME_ZOOM) so the cluster is smaller and sits lower: the
+ * whale's free swimming band above it matters more. The whale is scaled up by the same factor,
+ * so it keeps its on-screen size.
+ */
+const HOME_TARGET = new Vector3(0, 2.0, 0);
 export const CAMERA_HOME: Omit<CameraKey, "t"> = {
-  // ~14° above the scene: the honeycomb still reads, but takes less height than a steep view,
-  // which leaves room for a large whale on short screens.
-  position: new Vector3(0, 5.5, 12.4),
-  target: new Vector3(0, 2.0, 0),
+  position: HOME_TARGET.clone().add(new Vector3(0, 3.5, 12.4).multiplyScalar(HOME_ZOOM)),
+  target: HOME_TARGET.clone().add(new Vector3(0, 1.35, 0)),
 };
 
 const DOOR_FOCUS = along(0.55, 0.42);

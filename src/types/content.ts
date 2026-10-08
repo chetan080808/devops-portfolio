@@ -52,6 +52,8 @@ export interface Milestone {
   highlights: string[];
   /** The stage you're in right now — rendered as "running" instead of passed */
   current?: boolean;
+  /** Real duration shown in the Jenkins Stage View, e.g. "4y" or "8mo"; null renders "—" */
+  duration: string | null;
 }
 
 /**
@@ -131,6 +133,13 @@ export interface SiteContent {
   };
   projects: Project[];
   experience: Milestone[];
+  /** Jenkins-style presentation of `experience` (Pipeline section) */
+  pipeline: {
+    job: string;
+    branch: string;
+    /** Parallel branch running alongside one stage; its jobs are the projects in `projects` */
+    parallel: { label: string; alongside: string };
+  };
   dashboard: DashboardPanel[];
   socials: SocialLink[];
   footer: {
