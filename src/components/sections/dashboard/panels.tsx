@@ -22,7 +22,14 @@ function BigValue({ value, decimals, suffix, accent }: {
     return <p className="font-mono text-lg text-faint">No data</p>;
   }
   return (
-    <p className={cn("font-mono text-4xl font-medium tracking-tight", accentText[accent])}>
+    // Real values only: DashboardScroll counts these up from 0 (the server HTML is the final value).
+    <p
+      data-countup
+      data-value={value}
+      data-decimals={decimals ?? 0}
+      data-suffix={suffix ?? ""}
+      className={cn("font-mono text-4xl font-medium tracking-tight", accentText[accent])}
+    >
       {formatValue(value, decimals, suffix)}
     </p>
   );
@@ -91,7 +98,7 @@ export function SparklinePanel({ panel }: { panel: PanelOf<"sparkline"> }) {
         {hasSeries ? (
           <>
             <path d={`${line} L${W},${H} L0,${H} Z`} fill={`url(#${gradId})`} />
-            <path d={line} fill="none" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+            <path data-spark-line d={line} fill="none" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
           </>
         ) : (
           <line
@@ -135,6 +142,8 @@ export function GaugePanel({ panel }: { panel: PanelOf<"gauge"> }) {
               strokeLinecap="round"
               strokeDasharray={arc}
               strokeDashoffset={arc * (1 - value / 100)}
+              data-gauge-arc
+              data-arc={arc}
               style={{ filter: `drop-shadow(0 0 4px ${color})` }}
             />
           )}
@@ -158,7 +167,7 @@ export function ListPanel({ panel }: { panel: PanelOf<"list"> }) {
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <ul className={cn("grid gap-x-8 gap-y-2", panel.wide && "sm:grid-cols-2")}>
         {panel.items.map((item, i) => (
-          <li key={`${item.label}-${i}`} className="flex items-center justify-between gap-3 font-mono text-xs">
+          <li key={`${item.label}-${i}`} data-list-item className="flex items-center justify-between gap-3 font-mono text-xs">
             <span className="flex items-center gap-2 text-fg">
               <span
                 className="size-1.5 rounded-full"

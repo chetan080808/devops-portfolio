@@ -3,6 +3,7 @@ import type { DashboardPanel } from "@/types/content";
 import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { StatusDot } from "@/components/ui/StatusDot";
+import { DashboardScroll } from "./DashboardScroll";
 import { GaugePanel, ListPanel, SparklinePanel, StatPanel, TextPanel } from "./panels";
 
 function Panel({ panel }: { panel: DashboardPanel }) {
@@ -43,6 +44,7 @@ export function Dashboard() {
           <Panel key={panel.id} panel={panel} />
         ))}
       </div>
+      <DashboardScroll />
     </Section>
   );
 }
