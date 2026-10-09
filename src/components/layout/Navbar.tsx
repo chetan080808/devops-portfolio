@@ -1,5 +1,6 @@
 import { site } from "@/content/site";
 import { ClusterStatus } from "./ClusterStatus";
+import { NavLinks } from "./NavLinks";
 
 export function Navbar() {
   return (
@@ -8,25 +9,14 @@ export function Navbar() {
         aria-label="Primary"
         className="glass mx-auto flex h-12 max-w-6xl items-center justify-between rounded-xl px-4"
       >
-        <a href="#top" className="flex items-center gap-2 font-mono text-sm text-fg">
-          <span className="text-cyan">~/</span>
+        <a href="#top" className="group flex items-center gap-2 font-mono text-sm text-fg">
+          <span className="text-cyan transition-transform duration-300 group-hover:-translate-x-0.5">~/</span>
           {site.profile.handle}
           <span className="animate-blink text-cyan" aria-hidden="true">
             _
           </span>
         </a>
-        <ul className="hidden items-center gap-1 md:flex">
-          {site.nav.map((item) => (
-            <li key={item.href}>
-              <a
-                href={item.href}
-                className="rounded-md px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:bg-white/5 hover:text-fg"
-              >
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
+        <NavLinks />
         <ClusterStatus />
       </nav>
     </header>

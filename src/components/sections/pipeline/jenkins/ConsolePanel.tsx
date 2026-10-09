@@ -62,7 +62,7 @@ export function ConsolePanel({ stage, onClose }: { stage: PipelineStage | null; 
                 ref={closeRef}
                 type="button"
                 onClick={onClose}
-                className="rounded-md border border-line-strong px-2 py-1 font-mono text-[0.7rem] text-muted transition-colors hover:border-cyan/50 hover:text-cyan"
+                className="rounded-md border border-line-strong px-2 py-1 font-mono text-[0.7rem] text-muted transition-[color,border-color,transform] hover:border-cyan/50 hover:text-cyan active:scale-95"
               >
                 close <span aria-hidden="true">esc</span>
               </button>

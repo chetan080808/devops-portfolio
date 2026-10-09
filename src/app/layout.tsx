@@ -43,7 +43,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // data-boot is set by BootGate before first paint
     <html lang="en" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
-      <body className="min-h-dvh overflow-x-hidden [html[data-boot=run]_&]:overflow-hidden">
+      {/* suppressHydrationWarning: extensions (e.g. Grammarly) add attributes to <body> before React loads */}
+      <body className="min-h-dvh overflow-x-hidden [html[data-boot=run]_&]:overflow-hidden" suppressHydrationWarning>
         <BootGate />
         {children}
       </body>

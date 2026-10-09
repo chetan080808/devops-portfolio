@@ -70,7 +70,7 @@ export function StageView({ stages, onOpen }: { stages: PipelineStage[]; onOpen:
                   title={s.milestone?.duration ? undefined : "Duration: TODO in site.ts"}
                   className={cn(
                     // data-* (not group-data-*): this element itself carries data-status.
-                    "h-11 w-full rounded-md border hover:ring-2 hover:ring-cyan/50 focus-visible:ring-2 focus-visible:ring-cyan",
+                    "h-11 w-full rounded-md border transition-transform duration-150 hover:ring-2 hover:ring-cyan/50 focus-visible:ring-2 focus-visible:ring-cyan active:scale-[0.97] motion-reduce:transform-none",
                     // Jenkins conventions, dark-theme versions in the site palette.
                     "data-[status=queued]:border-line-strong data-[status=queued]:bg-white/[0.04] data-[status=queued]:text-muted",
                     "data-[status=passed]:border-success/35 data-[status=passed]:bg-success/[0.14] data-[status=passed]:text-[#86efac]",

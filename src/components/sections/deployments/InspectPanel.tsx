@@ -87,7 +87,7 @@ export function InspectPanel({ project, onClose }: { project: Project | null; on
                 ref={closeRef}
                 type="button"
                 onClick={onClose}
-                className="rounded px-2 py-0.5 font-mono text-xs text-muted hover:bg-white/5 hover:text-fg"
+                className="rounded px-2 py-0.5 font-mono text-xs text-muted transition-[color,background-color,transform] hover:bg-white/5 hover:text-fg active:scale-95"
               >
                 esc ✕
               </button>
@@ -124,7 +124,7 @@ export function InspectPanel({ project, onClose }: { project: Project | null; on
                       href={link.href}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-md border border-line-strong px-3 py-1.5 text-xs text-fg transition-colors hover:border-cyan/50 hover:text-cyan"
+                      className="rounded-md border border-line-strong px-3 py-1.5 text-xs text-fg transition-[color,border-color,background-color,transform] hover:border-cyan/50 hover:bg-cyan/5 hover:text-cyan active:scale-95"
                     >
                       {link.label} ↗
                     </a>

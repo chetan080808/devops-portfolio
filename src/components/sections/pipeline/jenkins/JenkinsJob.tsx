@@ -107,7 +107,8 @@ export function StageNode({
           "group-data-[status=queued]/st:border-[#8b95a8] group-data-[status=queued]/st:bg-bg",
           "group-data-[status=passed]/st:border-[#2fa84f] group-data-[status=passed]/st:bg-[#2fa84f]",
           "group-data-[status=running]/st:border-[#4a90e2] group-data-[status=running]/st:bg-[#4a90e2]",
-          "group-hover/st:ring-2 group-hover/st:ring-cyan/50 group-focus-visible/st:ring-2 group-focus-visible/st:ring-cyan",
+          "transition-transform duration-150 group-hover/st:ring-2 group-hover/st:ring-cyan/50 group-focus-visible/st:ring-2 group-focus-visible/st:ring-cyan",
+          "group-active/st:scale-90 motion-reduce:transform-none",
         )}
       >
         <svg viewBox="0 0 16 16" aria-hidden="true" className="hidden size-3.5 text-white group-data-[status=passed]/st:block">

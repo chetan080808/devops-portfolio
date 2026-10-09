@@ -1,6 +1,7 @@
 import type { Project } from "@/types/content";
 import { Badge } from "@/components/ui/Badge";
 import { Chip } from "@/components/ui/Chip";
+import { cn } from "@/lib/cn";
 import { MiniSlot } from "./MiniSlot";
 
 const MAX_CHIPS = 5;
@@ -18,7 +19,12 @@ export function ProjectCard({ project, index, onInspect }: {
     <article
       data-landed="true"
       data-running={project.status === "Running" ? "true" : "false"}
-      className="glass group/card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-500 ease-premium hover:-translate-y-1 hover:border-cyan/30 hover:glow-edge"
+      className={cn(
+        "glass group/card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-500 ease-premium",
+        "hover:-translate-y-1 hover:border-cyan/30 hover:glow-edge active:translate-y-0 active:scale-[0.99] active:duration-100",
+        // The whole card is the inspect button's hit area, so the card shows its keyboard focus.
+        "has-focus-visible:border-cyan/60 has-focus-visible:glow-edge motion-reduce:transform-none",
+      )}
     >
       {/* top "container" rail */}
       <div
@@ -63,9 +69,12 @@ export function ProjectCard({ project, index, onInspect }: {
           type="button"
           onClick={() => onInspect(project)}
           aria-haspopup="dialog"
-          className="text-cyan transition-colors after:absolute after:inset-0 hover:text-fg"
+          className="rounded text-cyan transition-colors group-hover:text-fg after:absolute after:inset-0 focus-visible:outline-offset-2"
         >
-          docker inspect →
+          docker inspect{" "}
+          <span aria-hidden="true" className="inline-block transition-transform duration-300 group-hover:translate-x-0.5 motion-reduce:transform-none">
+            →
+          </span>
         </button>
       </div>
     </article>

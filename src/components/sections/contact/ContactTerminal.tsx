@@ -2,6 +2,7 @@ import { site } from "@/content/site";
 import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ButtonLink } from "@/components/ui/Button";
+import { CopyEmail } from "./CopyEmail";
 import { Terminal } from "./Terminal";
 
 /** Contact: an interactive terminal (Terminal) plus plain buttons as the easy path. */
@@ -31,9 +32,12 @@ export function ContactTerminal() {
           </div>
 
           <div className="space-y-3">
-            <ButtonLink href={`mailto:${profile.email}`} className="w-full">
-              Email me →
-            </ButtonLink>
+            <div className="flex gap-3">
+              <ButtonLink href={`mailto:${profile.email}`} className="flex-1">
+                Email me →
+              </ButtonLink>
+              <CopyEmail email={profile.email} />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               {socials
                 .filter((s) => s.kind !== "email")
