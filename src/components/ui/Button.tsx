@@ -18,7 +18,7 @@ export function ButtonLink({
   return (
     <a
       className={cn(
-        "group inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 font-mono text-sm font-medium transition-all duration-300 ease-premium",
+        "group inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 font-mono text-sm font-medium transition-all duration-300 ease-premium active:scale-[0.98] active:duration-75",
         variants[variant],
         className,
       )}
