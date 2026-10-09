@@ -82,7 +82,9 @@ export const SWIM = {
   /** 4a transition: slow, critically damped spring + gentle turns (no overshoot, no twisting) */
   calm: { stiffness: 2.2, damping: 3.0, maxSpeed: 1.6, turnStiffness: 5, turnDamping: 4.5 },
   /** 4a: hover this far above the project cards while the minis drop; max size there */
-  drop: { gap: 26, maxFit: 0.95, z: 1.2, x: 0.74 },
+  // gap: where the drop spring aims (box bottom above the card tops); cardGap: hard limit (spec 24 px
+  // clearance + 4 px for the card hover lift). Only the falling minis may cross into the cards.
+  drop: { gap: 36, cardGap: 28, maxFit: 0.95, z: 1.2, x: 0.74 },
   /** Vertical swimming room (px) the shrink-to-fit always leaves on short screens */
   minTravelY: 90,
   /** Idle figure-eight around home (px), home centre at this share of the viewport width */
@@ -90,6 +92,13 @@ export const SWIM = {
   bob: { amplitude: 0.07, period: 3.6, px: 6 },
   /** Hover tail flick */
   flick: { duration: 0.8, cooldown: 1.5, tailBoost: 2.6, roll: 0.22 },
+  /**
+   * Chaos Monkey run: the whale keeps `gap` px clear of the log (the allowed zone eases in over
+   * `avoidIn` s, so it swims away instead of jumping) and gets restless: faster tail beat and
+   * idle loop (pitch / roll flattened by `flatten`), ramping up in `rampIn` s and calming down over
+   * `calmDown` s after the heal.
+   */
+  chaos: { gap: 16, avoidIn: 0.4, tailBoost: 0.8, idleBoost: 0.45, flatten: 0.6, rampIn: 0.35, calmDown: 1.4 },
 };
 
 /** Minis pop onto its back, one after another, as it settles. */

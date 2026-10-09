@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { ChaosMonkeyButton, nodesDown } from "@/components/easter-eggs/ChaosMonkey";
+import { ChaosMonkeyButton } from "@/components/easter-eggs/ChaosMonkey";
 import { CanvasErrorBoundary } from "@/components/three/CanvasErrorBoundary";
 import { NODE_COUNT } from "@/components/three/cluster/layout";
 import { measureHeroLayout } from "@/components/three/heroLayout";
 import { useIsMobile, useMediaQuery, usePrefersReducedMotion } from "@/hooks/useMediaQuery";
 import { useChaosRun, useChaosTime } from "@/hooks/useChaos";
 import { useSceneState } from "@/hooks/useSceneState";
-import { chaos } from "@/lib/chaos";
+import { chaos, nodesDown } from "@/lib/chaos";
 import { cn } from "@/lib/cn";
 
 /** Mobile / tablet: the canvas sits in the stage; soft fade on all four edges. */

@@ -30,6 +30,11 @@ export const heroLayout = {
   navBottom: 0,
   foldBottom: 0,
   viewportW: 0,
+  /**
+   * Desktop: the Chaos Monkey log while it is on screen, in VIEWPORT px (it is fixed). Reserved
+   * from the moment a run starts, so the whale swims clear before the log fades in. Set by ChaosLog.
+   */
+  chaosLog: null as Rect | null,
 };
 
 const origin = { x: 0, y: 0 };

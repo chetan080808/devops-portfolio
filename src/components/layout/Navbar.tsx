@@ -1,5 +1,5 @@
 import { site } from "@/content/site";
-import { StatusDot } from "@/components/ui/StatusDot";
+import { ClusterStatus } from "./ClusterStatus";
 
 export function Navbar() {
   return (
@@ -27,11 +27,7 @@ export function Navbar() {
             </li>
           ))}
         </ul>
-        <p className="flex items-center gap-2 font-mono text-[0.7rem] text-muted">
-          <StatusDot accent="success" />
-          <span className="hidden sm:inline">cluster:</span>
-          <span className="text-success">healthy</span>
-        </p>
+        <ClusterStatus />
       </nav>
     </header>
   );

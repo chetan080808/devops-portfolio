@@ -1,9 +1,10 @@
 import { Box3, MathUtils, Vector2, Vector3, type Object3D, type PerspectiveCamera } from "three";
-import { canvasOrigin, heroLayout } from "../heroLayout";
+import { canvasOrigin, heroLayout, type Rect } from "../heroLayout";
 import { pointer, pointerFollowing } from "../pointer";
 import { fromCanvasPx, toCanvasPx } from "../projection";
 import { SWIM } from "./choreography";
 import { whaleScreen } from "./tracking";
+import { chaos } from "@/lib/chaos";
 import { DROP_PIN_AT, scrollStory } from "@/lib/scrollStory";
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -72,6 +73,12 @@ export class WhaleController {
    */
   fit = 1;
   private started = false;
+  /** Chaos log avoidance: 0–1 progress (eases the zone in/out) and the side chosen for this run */
+  private avoidK = 0;
+  private avoidSide: "left" | "below" | null = null;
+  private avoidRect: Rect | null = null;
+  /** Chaos Monkey restlessness, 0–1 */
+  private excite = 0;
   /** Box extents around the projected centre (px), from the previous frame */
   private ext = { left: 150, right: 150, up: 80, down: 80 };
   readonly screenBox = { x0: 0, y0: 0, x1: 0, y1: 0 };
@@ -101,13 +108,21 @@ export class WhaleController {
     if (this.frame++ % 20 === 0) this.measureObstacles(scene, camera, w, h);
     this.measure(whale, camera, w, h);
     this.updateFit(dt);
-    const zone = this.zone(w, h);
     // 4a: as Deployments scrolls in, the whale leaves the hero and swims down above the cards.
     const ap = heroLayout.fullBleed ? smooth(scrollStory.approach) : 0;
     // The moment the transition starts, ONLY the drop choreography drives the whale: no cursor
     // follow, no idle path. `calm` ramps the motion down to slow, level, profile-only swimming.
     const dropMode = heroLayout.fullBleed && scrollStory.approach > 0.001;
     const calm = dropMode ? MathUtils.clamp(scrollStory.approach * 10, 0, 1) : 0;
+    const zone = this.avoidLog(this.zone(w, h), dt, dropMode);
+    // Chaos Monkey: restless while nodes are down, calming down after the heal.
+    const restless = !!chaos.get() && !still && !dropMode;
+    this.excite = MathUtils.clamp(
+      this.excite + (restless ? dt / SWIM.chaos.rampIn : -dt / SWIM.chaos.calmDown),
+      0,
+      1,
+    );
+    const excite = smooth(this.excite);
     // The camera pans with the scroll (CameraRig). During the transition the whale rides along
     // with that pan, so its spring only handles motion ON SCREEN: a slow, calm spring can then never
     // be left behind by fast scrolling (it used to drop off the bottom when scrolling back up).
@@ -149,7 +164,7 @@ export class WhaleController {
       const ny = MathUtils.clamp((pointer.client.y - hy0) / Math.max(1, hy1 - hy0), 0, 1);
       px.set(MathUtils.lerp(zone.x0, zone.x1, nx), MathUtils.lerp(zone.y0, zone.y1, ny));
     } else {
-      if (!still) this.theta += ((Math.PI * 2) / SWIM.idle.period) * dt;
+      if (!still) this.theta += ((Math.PI * 2) / SWIM.idle.period) * (1 + SWIM.chaos.idleBoost * excite) * dt;
       const homeX = MathUtils.clamp(SWIM.idle.homeX * heroLayout.viewportW + window.scrollX - this.o.x, zone.x0, zone.x1);
       // Home height: a fixed point above the cluster, so on tall screens it stays close to the
       // cluster instead of drifting to the top; short screens clamp it below the headroom.
@@ -200,11 +215,15 @@ export class WhaleController {
     // Drop mode: the hero has scrolled away, only the navbar headroom still applies.
     toCanvasPx(this.pos, camera, w, h, centrePx);
     const cx = dropMode ? centrePx.x : MathUtils.clamp(centrePx.x, zone.x0, zone.x1);
-    const cy = dropMode
+    let cy = dropMode
       ? this.leaving
         ? centrePx.y
         : Math.max(centrePx.y, zone.y0)
       : MathUtils.clamp(centrePx.y, zone.y0, zone.y1);
+    // Drop: never down onto the project cards (approaching, pinned and leaving with them). The
+    // cards win over the navbar headroom; updateFit shrinks the whale so both usually hold.
+    const cardLimit = dropMode ? this.cardLimit() : Infinity;
+    cy = Math.min(cy, cardLimit - this.ext.down);
     if (cx !== centrePx.x || cy !== centrePx.y) {
       fromCanvasPx(cx, cy, this.z, camera, w, h, clampedWorld);
       if (cx !== centrePx.x) this.vel.x = 0;
@@ -251,8 +270,10 @@ export class WhaleController {
     // Pitch only reads well in profile: seen from behind it looks like "pointing straight up",
     // so it fades out as the heading passes through "away from camera" (a → 0). Same for bank.
     const profile = Math.pow(Math.min(1, Math.abs(Math.sin(this.a)) / Math.sin(SWIM.side)), 2);
-    // During the transition: level — pitch and roll fade to ~0.
-    const level = 1 - 0.92 * calm;
+    // During the transition: level — pitch and roll fade to ~0. Restless (Chaos Monkey): the log
+    // can leave the whale a narrow column, so its quicker loop is mostly vertical; keep it flatter
+    // so that never reads as "nose straight up".
+    const level = (1 - 0.92 * calm) * (1 - SWIM.chaos.flatten * excite);
     const pitch =
       MathUtils.clamp(Math.atan2(this.vel.y, Math.max(Math.abs(this.vel.x), 0.6)) * 0.8, -SWIM.maxPitch, SWIM.maxPitch) *
       profile *
@@ -263,7 +284,8 @@ export class WhaleController {
       ? 0
       : 1 +
         (0.9 * Math.min(1, speed / 2) + 0.5 * Math.min(1, Math.abs(this.aVel) / 3)) * (1 - 0.7 * calm) +
-        SWIM.flick.tailBoost * flick;
+        SWIM.flick.tailBoost * flick +
+        SWIM.chaos.tailBoost * excite;
 
     return { position: this.pos, yaw: Math.PI + this.a, pitch, bank, swimRate };
   }
@@ -279,19 +301,41 @@ export class WhaleController {
     this.measure(whale, camera, w, h);
     const o = canvasOrigin();
     const dropMode = smooth(scrollStory.approach) > 0.02;
-    const dx = dropMode ? 0 : Math.max(0, L.text.x1 - o.x + LIMITS.textGap - this.screenBox.x0);
+    let dx = dropMode ? 0 : Math.max(0, L.text.x1 - o.x + LIMITS.textGap - this.screenBox.x0);
     let dy = this.leaving ? 0 : Math.max(0, L.navBottom + LIMITS.headroom - this.screenBox.y0);
+    // Drop: stay SWIM.drop.cardGap above the card tops whatever the pose (wins over the headroom).
+    if (scrollStory.approach > 0.001) {
+      const over = this.screenBox.y1 - this.cardLimit();
+      if (over > 0) dy = -over;
+    }
     if (dy === 0 && !dropMode) {
       // Above the cluster: push up, but never into the headroom.
       const over = this.screenBox.y1 - (this.obstacleTop - SWIM.clusterGap);
       const room = this.screenBox.y0 - (L.navBottom + LIMITS.headroom);
       if (over > 0) dy = -Math.min(over, Math.max(0, room));
     }
+    // Chaos log (once its zone has fully eased in): push clear of it by any remaining overlap,
+    // but the text / navbar / cluster limits above win a conflict.
+    const r = this.avoidK >= 1 && !dropMode ? this.avoidRect : null;
+    if (r) {
+      const g = SWIM.chaos.gap;
+      const b = this.screenBox;
+      if (this.avoidSide === "left" && dx === 0 && b.y0 < r.y1 + g) {
+        // Never into the text clearance: push left only as far as the 32 px gap allows.
+        const roomLeft = Math.max(0, b.x0 - (L.text.x1 - o.x + LIMITS.textGap));
+        dx = -Math.min(Math.max(0, b.x1 - (r.x0 - g)), roomLeft);
+      }
+      if (this.avoidSide === "below" && dy === 0 && b.x1 > r.x0 - g) {
+        const roomBelow = Math.max(0, this.obstacleTop - SWIM.clusterGap - b.y1);
+        dy = Math.min(Math.max(0, r.y1 + g - b.y0), roomBelow);
+      }
+    }
     if (dx === 0 && dy === 0) return;
     fromCanvasPx(centrePx.x + dx, centrePx.y + dy, this.z, camera, w, h, clampedWorld);
     this.pos.x = clampedWorld.x;
     this.pos.y = clampedWorld.y;
     if (dx > 0) this.vel.x = Math.max(0, this.vel.x);
+    if (dx < 0) this.vel.x = Math.min(0, this.vel.x);
     if (dy > 0) this.vel.y = Math.min(0, this.vel.y);
     if (dy < 0) this.vel.y = Math.max(0, this.vel.y);
     whale.position.copy(this.pos);
@@ -303,6 +347,13 @@ export class WhaleController {
   private grid() {
     if (!this.gridEl?.isConnected) this.gridEl = document.querySelector<HTMLElement>("[data-project-grid]");
     return this.gridEl;
+  }
+
+  /** Lowest the whale's box may reach during the drop: SWIM.drop.cardGap above the card tops (canvas px). */
+  private cardLimit() {
+    const g = this.grid();
+    if (!g) return Infinity;
+    return g.getBoundingClientRect().top + window.scrollY - this.o.y - SWIM.drop.cardGap;
   }
 
   /** Top edge (canvas px) of everything the whale must stay above. Cheap; refreshed every 20 frames. */
@@ -341,9 +392,12 @@ export class WhaleController {
     const ap = smooth(scrollStory.approach);
     const g = ap > 0 ? this.grid() : null;
     if (g) {
+      // Scrolling away with the cards: keep the size it had (it just rides along).
+      if (this.leaving) return;
       const roomDrop = g.getBoundingClientRect().top - SWIM.drop.gap - (L.navBottom + SWIM.headroom) - 2 * SWIM.bob.px;
       const dropTarget = MathUtils.clamp((this.fit * roomDrop) / height, SWIM.minFit, SWIM.drop.maxFit);
-      target = MathUtils.lerp(target, dropTarget, ap);
+      // Blend toward the drop size, but shrink at once if the rising cards leave too little room.
+      target = Math.min(MathUtils.lerp(target, dropTarget, ap), MathUtils.clamp((this.fit * roomDrop) / height, SWIM.minFit, 1));
     }
     // Shrink quickly (it must never touch the cluster), grow back slowly.
     this.fit += (target - this.fit) * Math.min(1, dt * (target < this.fit ? 10 : 2));
@@ -373,6 +427,43 @@ export class WhaleController {
     whale.getWorldPosition(corner);
     toCanvasPx(corner, camera, w, h, centrePx);
     this.ext = { left: centrePx.x - x0, right: x1 - centrePx.x, up: centrePx.y - y0, down: y1 - centrePx.y };
+  }
+
+  /**
+   * Shrink the zone so the whale's box stays clear of the Chaos Monkey log (desktop hero only).
+   * Per run it picks the side that leaves the most room: left of the log (full height) or below
+   * it (full width). The restriction eases in / out over SWIM.chaos.avoidIn, and the spring step's
+   * hard clamp then moves the whale along smoothly.
+   */
+  private avoidLog(zone: { x0: number; x1: number; y0: number; y1: number }, dt: number, dropMode: boolean) {
+    const log = heroLayout.fullBleed && !dropMode ? heroLayout.chaosLog : null;
+    this.avoidK = MathUtils.clamp(this.avoidK + (log ? dt : -dt) / SWIM.chaos.avoidIn, 0, 1);
+    if (log) {
+      // The canvas is fixed to the viewport on desktop: viewport px = canvas px (+ origin offset).
+      const ox = window.scrollX - this.o.x;
+      const oy = window.scrollY - this.o.y;
+      this.avoidRect = { x0: log.x0 + ox, y0: log.y0 + oy, x1: log.x1 + ox, y1: log.y1 + oy };
+    }
+    const r = this.avoidRect;
+    if (this.avoidK === 0 || !r) {
+      this.avoidSide = null;
+      return zone;
+    }
+    const g = SWIM.chaos.gap;
+    const xMax = r.x0 - g - this.ext.right; // centre limit when staying left of the log
+    const yMin = r.y1 + g + this.ext.up; // centre limit when staying below it
+    if (!this.avoidSide) {
+      const areaLeft = Math.max(0, Math.min(zone.x1, xMax) - zone.x0) * (zone.y1 - zone.y0);
+      const areaBelow = (zone.x1 - zone.x0) * Math.max(0, zone.y1 - Math.max(zone.y0, yMin));
+      this.avoidSide = areaBelow > areaLeft ? "below" : "left";
+    }
+    const k = smooth(this.avoidK);
+    if (this.avoidSide === "left") {
+      const x1 = MathUtils.clamp(xMax, zone.x0, zone.x1);
+      return { ...zone, x1: MathUtils.lerp(zone.x1, x1, k) };
+    }
+    const y0 = MathUtils.clamp(yMin, zone.y0, zone.y1);
+    return { ...zone, y0: MathUtils.lerp(zone.y0, y0, k) };
   }
 
   /** Allowed rectangle for the whale's projected centre (canvas px). */

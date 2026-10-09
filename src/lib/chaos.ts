@@ -49,6 +49,11 @@ export function victimPhase(i: number, t: number): { phase: VictimPhase; k: numb
   return { phase: "healing", k: (t - restartAt(i)) / CHAOS.HEAL };
 }
 
+/** Nodes of the run that are not healthy at `t`. */
+export function nodesDown(r: ChaosRun, t: number) {
+  return r.victims.filter((_, i) => victimPhase(i, t).phase !== "healthy").length;
+}
+
 export const chaos = {
   get: () => run,
   /** Seconds since the current run started (or −1). */

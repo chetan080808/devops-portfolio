@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useChaosRun, useChaosTime } from "@/hooks/useChaos";
-import { CHAOS, chaos, healedAt, killAt, podName, runDuration, victimPhase, type ChaosRun } from "@/lib/chaos";
+import { CHAOS, chaos, healedAt, killAt, podName, runDuration, type ChaosRun } from "@/lib/chaos";
 import { cn } from "@/lib/cn";
+import { heroLayout } from "@/components/three/heroLayout";
+import { StatusDot } from "@/components/ui/StatusDot";
 
 type Tone = "cmd" | "fail" | "warn" | "ok";
 interface LogLine {
@@ -45,11 +47,6 @@ function logFor(run: ChaosRun): LogLine[] {
   ];
 }
 
-/** Nodes of the run that are not healthy at `t`. */
-export function nodesDown(run: ChaosRun, t: number) {
-  return run.victims.filter((_, i) => victimPhase(i, t).phase !== "healthy").length;
-}
-
 /** "Release chaos monkey" button for the hero stage. Disabled while a run is in progress. */
 export function ChaosMonkeyButton({ disabled, className }: { disabled?: boolean; className?: string }) {
   const run = useChaosRun();
@@ -63,7 +60,7 @@ export function ChaosMonkeyButton({ disabled, className }: { disabled?: boolean;
       className={cn(
         // Neutral by default (it's an easter egg, not an error); red only when you reach for it.
         "pointer-events-auto rounded-md border border-line-strong px-2 py-0.5 font-mono text-[0.68rem] whitespace-nowrap text-faint",
-        "transition-colors duration-300 hover:border-danger/60 hover:bg-danger/10 hover:text-danger",
+        "transition-[color,background-color,border-color,transform] duration-300 active:scale-95 active:duration-75 hover:border-danger/60 hover:bg-danger/10 hover:text-danger",
         "focus-visible:border-danger focus-visible:bg-danger/10 focus-visible:text-danger",
         "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-line-strong disabled:hover:bg-transparent disabled:hover:text-faint",
         className,
@@ -77,14 +74,47 @@ export function ChaosMonkeyButton({ disabled, className }: { disabled?: boolean;
   );
 }
 
-/** Floating log of the current run: top-right on desktop (clear of the cluster), bottom on mobile. Mounted once. */
+/**
+ * Whether the hero is still the section in view: its bottom is below a line 35% down the viewport
+ * (the same probe line the navbar uses for the active section).
+ */
+function useHeroVisible() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const hero = document.getElementById("top");
+    if (!hero) return;
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: "-35% 0px 0px 0px" });
+    io.observe(hero);
+    return () => io.disconnect();
+  }, []);
+  return visible;
+}
+
+/** Lines of the log kept on screen (newest at the bottom); older ones scroll off. */
+const VISIBLE_LINES = 4;
+
+/**
+ * Compact floating log of the current run. Desktop: under the right end of the navbar, and the
+ * whale keeps clear of it (its rect goes to heroLayout.chaosLog). Mobile: bottom. Mounted once.
+ */
 export function ChaosLog() {
   const run = useChaosRun();
   // Keep the finished run on screen for a moment after the store clears it.
   const [shown, setShown] = useState<ChaosRun | null>(null);
+  // Runs started from elsewhere (the contact terminal) keep their log wherever you are; a run
+  // started in the hero has its log dismissed for good once the hero scrolls out of view.
+  const [offHero, setOffHero] = useState(false);
+  const [dismissed, setDismissed] = useState<ChaosRun | null>(null);
+  const heroVisible = useHeroVisible();
   const reduce = useReducedMotion();
+  const box = useRef<HTMLDivElement>(null);
 
-  if (run && shown !== run) setShown(run);
+  if (run && shown !== run) {
+    setShown(run);
+    setOffHero(!heroVisible);
+  }
+  if (shown && !offHero && !heroVisible && dismissed !== shown) setDismissed(shown);
+  const visible = shown && shown !== dismissed ? shown : null;
 
   useEffect(() => {
     if (run) return;
@@ -92,19 +122,45 @@ export function ChaosLog() {
     return () => window.clearTimeout(id);
   }, [run]);
 
+  // Reserve the log's area for the whale from the first frame of a run (the panel fades in a beat
+  // later, by which time the whale is already swimming clear). Released once the exit has finished.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!visible || !el) return;
+    const publish = () => {
+      if (!window.matchMedia("(min-width: 1024px)").matches) {
+        heroLayout.chaosLog = null;
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      heroLayout.chaosLog = { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
+    };
+    publish();
+    window.addEventListener("resize", publish);
+    return () => window.removeEventListener("resize", publish);
+  }, [visible]);
+
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-40 w-[min(23rem,calc(100vw-2rem))] lg:top-[5.5rem] lg:bottom-auto">
-      <AnimatePresence>
-        {shown && (
+    <div
+      ref={box}
+      className={cn(
+        "pointer-events-none fixed right-4 bottom-4 z-40 w-[min(19rem,calc(100vw-2rem))]",
+        // Right-aligned with the navbar's right edge
+        "lg:top-[5.25rem] lg:right-[max(1.5rem,calc((100%_-_72rem)/2))] lg:bottom-auto",
+      )}
+    >
+      <AnimatePresence onExitComplete={() => (heroLayout.chaosLog = null)}>
+        {visible && (
           <motion.div
-            key={shown.startedAt}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.98 }}
+            key={visible.startedAt}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-xl border border-line-strong bg-bg-raised/95 p-4 backdrop-blur-md font-mono text-[0.7rem] leading-relaxed shadow-2xl"
+            // No delay on the way out (the enter delay only lets the whale swim clear first)
+            exit={reduce ? { opacity: 0, transition: { duration: 0.2 } } : { opacity: 0, y: -6, transition: { duration: 0.25 } }}
+            transition={{ duration: 0.35, delay: reduce ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="rounded-lg border border-line-strong bg-bg-raised/90 px-3 py-2.5 font-mono text-[0.68rem] leading-relaxed shadow-xl backdrop-blur-md"
           >
-            <RunLog run={shown} />
+            <RunLog run={visible} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -117,17 +173,21 @@ function RunLog({ run }: { run: ChaosRun }) {
   const live = useChaosRun() === run;
   const t = useChaosTime(live ? run : null);
   const healed = !live;
-  const visible = healed ? lines : lines.filter((l) => l.at <= t);
+  const visible = (healed ? lines : lines.filter((l) => l.at <= t)).slice(-VISIBLE_LINES);
 
   return (
     <>
-      <p className="mb-2 flex items-center justify-between text-faint">
-        <span>chaos-monkey · namespace/portfolio</span>
-        <span className={healed ? "text-success" : "text-danger"}>{healed ? "healthy" : "degraded"}</span>
+      <p className="mb-1 flex items-center justify-between gap-3 text-faint">
+        <span className="truncate">chaos-monkey · portfolio</span>
+        <span className={cn("flex items-center gap-1.5", healed ? "text-success" : "text-warning")}>
+          <StatusDot accent={healed ? "success" : "warning"} className="size-1.5" />
+          {healed ? "healthy" : "degraded"}
+        </span>
       </p>
-      <div role="log" aria-live="polite" aria-label="Chaos Monkey log">
+      {/* Fixed height (VISIBLE_LINES lines): the box never grows, so its reserved area stays exact. */}
+      <div role="log" aria-live="polite" aria-label="Chaos Monkey log" className="h-[4.42rem] overflow-hidden">
         {visible.map((l) => (
-          <p key={`${l.at}-${l.text}`} className={toneClass[l.tone]}>
+          <p key={`${l.at}-${l.text}`} className={cn("truncate", toneClass[l.tone])}>
             {l.text}
           </p>
         ))}
