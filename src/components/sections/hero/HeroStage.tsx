@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { ChaosMonkeyButton, nodesDown } from "@/components/easter-eggs/ChaosMonkey";
 import { CanvasErrorBoundary } from "@/components/three/CanvasErrorBoundary";
 import { NODE_COUNT } from "@/components/three/cluster/layout";
 import { measureHeroLayout } from "@/components/three/heroLayout";
 import { useIsMobile, useMediaQuery, usePrefersReducedMotion } from "@/hooks/useMediaQuery";
+import { useChaosRun, useChaosTime } from "@/hooks/useChaos";
 import { useSceneState } from "@/hooks/useSceneState";
+import { chaos } from "@/lib/chaos";
 import { cn } from "@/lib/cn";
 
 /** Mobile / tablet: the canvas sits in the stage; soft fade on all four edges. */
@@ -74,6 +77,10 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
   }, [desktop]);
 
   const nodes = mobile ? NODE_COUNT.mobile : NODE_COUNT.desktop;
+  useEffect(() => chaos.setNodeCount(nodes), [nodes]);
+  const run = useChaosRun();
+  const chaosT = useChaosTime(run);
+  const down = run && chaosT >= 0 ? nodesDown(run, chaosT) : 0;
 
   return (
     // Desktop: spans the whole right column, top-aligned (centring against the taller text
@@ -84,15 +91,24 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
     >
       <div className="relative h-full w-full">
         <div className={cn("absolute inset-0 transition-opacity duration-700", ready && "opacity-0")}>{fallback}</div>
-        <p
-          className={cn(
-            "absolute bottom-2 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] whitespace-nowrap transition-colors",
-            clusterReady || !ready ? "text-faint" : "text-cyan",
-          )}
-          aria-live="polite"
-        >
-          {!ready || clusterReady ? `[ OK ] ${nodes}/${nodes} nodes ready` : "scheduling nodes…"}
-        </p>
+        <div className="absolute inset-x-0 bottom-2 flex items-center justify-center gap-3">
+          <p
+            className={cn(
+              "font-mono text-[0.68rem] whitespace-nowrap transition-colors",
+              down > 0 ? "text-warning" : clusterReady || !ready ? "text-faint" : "text-cyan",
+            )}
+            // The Chaos Monkey log announces the run; don't also announce every count change here.
+            aria-live={run ? "off" : "polite"}
+          >
+            {down > 0
+              ? `[ WARN ] ${nodes - down}/${nodes} nodes ready`
+              : !ready || clusterReady
+                ? `[ OK ] ${nodes}/${nodes} nodes ready`
+                : "scheduling nodes…"}
+          </p>
+          {/* Waits for the intro to finish wiring the cluster (if the 3D scene is up at all). */}
+          <ChaosMonkeyButton disabled={ready && !clusterReady} />
+        </div>
       </div>
 
       {/* Mobile: inside the stage with soft CSS edges. Desktop: fixed to the viewport, above the
@@ -100,7 +116,9 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
           scene follows the scroll and is masked in WebGL (heroMaskPass). */}
       <div
         ref={canvasBox}
-        className="pointer-events-none absolute inset-0 lg:fixed lg:z-30"
+        // Hidden while the render loop is stopped: the fixed canvas would otherwise keep showing its
+        // last frame (e.g. the whale) over whatever section a fast scroll or nav jump lands on.
+        className={cn("pointer-events-none absolute inset-0 lg:fixed lg:z-30", !inView && "invisible")}
         style={desktop ? undefined : maskStyle(EDGE_FADE)}
       >
         <CanvasErrorBoundary>

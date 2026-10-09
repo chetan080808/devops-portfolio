@@ -7,6 +7,7 @@ import { Pipeline } from "@/components/sections/pipeline/Pipeline";
 import { Dashboard } from "@/components/sections/dashboard/Dashboard";
 import { ContactTerminal } from "@/components/sections/contact/ContactTerminal";
 import { Footer } from "@/components/sections/footer/Footer";
+import { ChaosLog } from "@/components/easter-eggs/ChaosMonkey";
 
 export default function Home() {
   return (
@@ -28,6 +29,7 @@ export default function Home() {
         <ContactTerminal />
       </main>
       <Footer />
+      <ChaosLog />
     </>
   );
 }
