@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { site } from "@/content/site";
 import { cn } from "@/lib/cn";
 import { ConsolePanel } from "./ConsolePanel";
 import { StageGraph } from "./StageGraph";
 import { StageView } from "./StageView";
 import { buildStages, jobRunning, type PipelineStage } from "./model";
-import { applyRun } from "./runState";
+import { useRunSync } from "./useRunSync";
 
 /*
  * Single source of truth: every stage's state lives in `data-status` ("queued" | "running" |
@@ -28,7 +28,7 @@ export function JenkinsJob() {
   const ref = useRef<HTMLDivElement>(null);
 
   // Re-derive every status after each render (React would otherwise show the final states).
-  useLayoutEffect(() => applyRun(ref.current));
+  useRunSync(ref);
 
   // Classic Stage View "in progress" stripes, animated (WAAPI: no extra CSS keyframes needed).
   useEffect(() => {
@@ -57,7 +57,7 @@ export function JenkinsJob() {
             <span className="text-success">✓ Success</span>
           )}
           <span className="text-muted">
-            · <span data-passed-count>{passed}/{mainStages.length} stages passed</span>
+            · <span data-passed-count>{`${passed}/${mainStages.length} stages passed`}</span>
           </span>
         </p>
       </div>

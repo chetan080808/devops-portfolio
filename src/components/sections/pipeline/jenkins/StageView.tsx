@@ -1,9 +1,10 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { site } from "@/content/site";
 import { cn } from "@/lib/cn";
 import type { PipelineStage } from "./model";
+import { useRunSync } from "./useRunSync";
 
 // Build date = today, read on the client only (no Date during prerender; server renders "").
 const noopSubscribe = () => () => {};
@@ -18,8 +19,11 @@ const useToday = () => useSyncExternalStore(noopSubscribe, today, () => "");
 export function StageView({ stages, onOpen }: { stages: PipelineStage[]; onOpen: (s: PipelineStage) => void }) {
   const build = site.experience.length;
   const date = useToday();
+  const ref = useRef<HTMLDivElement>(null);
+  // The date hydrating (and any other re-render) resets the cells to their final status.
+  useRunSync(ref);
   return (
-    <div className="hidden border-t border-line px-5 py-3 md:block">
+    <div ref={ref} className="hidden border-t border-line px-5 py-3 md:block">
       <table className="w-full table-fixed border-separate border-spacing-x-1 border-spacing-y-1 font-mono text-[0.72rem]">
         <caption className="sr-only">Stage View</caption>
         <thead>

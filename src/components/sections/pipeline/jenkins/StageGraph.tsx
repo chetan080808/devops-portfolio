@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { StageNode } from "./JenkinsJob";
 import type { PipelineStage } from "./model";
+import { useRunSync } from "./useRunSync";
 
 /** Node radius, main / branch row centres, label room — px */
 const R = 14;
@@ -30,6 +31,8 @@ export function StageGraph({ stages, onOpen }: { stages: PipelineStage[]; onOpen
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  // A resize re-renders the nodes with their final status: re-apply the run.
+  useRunSync(ref);
 
   const col = width / Math.max(1, main.length);
   const x = (i: number) => col * (i + 0.5);

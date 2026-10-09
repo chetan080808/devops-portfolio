@@ -31,5 +31,9 @@ export function applyRun(root: HTMLElement | null) {
   });
   const counter = root.querySelector<HTMLElement>("[data-passed-count]");
   const text = `${passedMain.size}/${mainIds.size} stages passed`;
-  if (counter && counter.textContent !== text) counter.textContent = text;
+  if (!counter || counter.textContent === text) return;
+  // Update React's own text node (replacing it would detach the node React keeps updating).
+  const node = counter.firstChild;
+  if (node instanceof Text && counter.childNodes.length === 1) node.nodeValue = text;
+  else counter.textContent = text;
 }
