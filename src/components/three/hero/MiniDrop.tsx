@@ -7,6 +7,7 @@ import { site } from "@/content/site";
 import { miniDropProgress, scrollStory } from "@/lib/scrollStory";
 import { MODELS, useModel } from "../assets";
 import { disposeMaterials, isNeon } from "../materials";
+import { extraScenes } from "../precompile";
 import { toCanvasPx, worldPerPixel } from "../projection";
 import { buildMini, miniRegistry } from "./minis";
 
@@ -66,6 +67,11 @@ const faceMat = new Matrix4();
 export function MiniDrop() {
   const { scene: containerScene } = useModel(MODELS.container);
   const overlay = useMemo(() => new Scene(), []);
+  // Warm its shaders up with the rest during the boot (its lights differ from the hero scene's).
+  useEffect(() => {
+    extraScenes.add(overlay);
+    return () => void extraScenes.delete(overlay);
+  }, [overlay]);
   const minis = useMemo(
     () =>
       site.projects.map(() => {

@@ -8,6 +8,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { createHeroMaskPass, updateHeroMask } from "./heroMaskPass";
+import { passMaterials, postMaterials } from "./precompile";
 
 /**
  * Weight of each blur level, tightest first. Three's default (1, .8, .6, .4, .2) lets the widest
@@ -54,7 +55,15 @@ export function Bloom({ strength = 0.45, radius = 0, threshold = 0.55 }: Props) 
     composer.setSize(size.width, size.height);
   }, [composer, dpr, size.width, size.height]);
 
-  useEffect(() => () => composer.dispose(), [composer]);
+  // Let the boot-time shader warm-up compile the passes' materials too (see precompile.ts).
+  useEffect(() => {
+    const materials = composer.passes.flatMap(passMaterials);
+    materials.forEach((m) => postMaterials.add(m));
+    return () => {
+      materials.forEach((m) => postMaterials.delete(m));
+      composer.dispose();
+    };
+  }, [composer]);
 
   useFrame((state, delta) => {
     updateHeroMask(mask, state.size.width, state.size.height);

@@ -6,18 +6,20 @@
 export interface SceneState {
   /** The lazy 3D chunk (three + R3F + scene code) has been downloaded and evaluated */
   chunkLoaded: boolean;
-  /** Files fetched through three's loading manager (GLBs + Draco decoder) */
+  /** Files fetched through three's loading manager (the GLBs) */
   assetsLoaded: number;
   assetsTotal: number;
   /** Models parsed and the first frame of the scene rendered */
   sceneReady: boolean;
   /** 3D failed (no WebGL, load error) — the page falls back to the static hero */
   failed: boolean;
+  /** Why: "no-gpu" = only software WebGL (static on purpose), "error" = no WebGL / load error */
+  failReason: "no-gpu" | "error" | null;
   /** Boot overlay finished or skipped; the hero intro may start */
   bootDone: boolean;
   /** Hero intro: every node landed and linked */
   clusterReady: boolean;
-  /** 0–1, never decreases (the Draco decoder joins the queue mid-load) */
+  /** 0–1, never decreases (files can join the queue mid-load) */
   progress: number;
 }
 
@@ -27,6 +29,7 @@ let state: SceneState = {
   assetsTotal: 0,
   sceneReady: false,
   failed: false,
+  failReason: null,
   bootDone: false,
   clusterReady: false,
   progress: 0,

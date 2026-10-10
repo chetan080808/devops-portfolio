@@ -76,7 +76,12 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
         push(`[ OK ] pulled ${assetsTotal} layers`, "ok");
         after(90, () => push(`[ OK ] ${readyLine}`, "ok"));
       } else if (outcome === "failed") {
-        push("[ WARN ] WebGL unavailable — serving static build", "warn");
+        push(
+          sceneStore.get().failReason === "no-gpu"
+            ? "[ WARN ] no GPU acceleration — serving static build"
+            : "[ WARN ] WebGL unavailable — serving static build",
+          "warn",
+        );
       } else {
         push("[ WARN ] still pulling — continuing in background", "warn");
       }

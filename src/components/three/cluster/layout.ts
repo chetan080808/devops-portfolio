@@ -1,4 +1,5 @@
 import { Vector3 } from "three";
+import { AXIAL, NODE_COUNT } from "./axial";
 
 /** World scale of cluster_node.glb (native: flat-top hex, ~2.0 × 1.74, top at y≈0.29). */
 export const NODE_SCALE = 0.6;
@@ -9,13 +10,7 @@ export const LINK_Y = 0.1;
 /** Distance from a node's centre to its flat side, where a link starts. */
 export const LINK_INSET = 0.87 * NODE_SCALE;
 
-// Axial coordinates — same honeycomb as the static SVG (HexCluster): centre, inner ring, 6 outer.
-const AXIAL: Array<[number, number]> = [
-  [0, 0],
-  [1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1],
-  [2, -1], [-2, 1], [1, 1], [-1, -1], [2, -2], [-2, 2],
-];
-export const NODE_COUNT = { desktop: AXIAL.length, mobile: 7 } as const;
+export { NODE_COUNT };
 
 /** Fly-in timing (seconds from intro start). */
 const FLY_DURATION = 1.05;

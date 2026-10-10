@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import dynamic from "next/dynamic";
 import { ChaosMonkeyButton } from "@/components/easter-eggs/ChaosMonkey";
 import { CanvasErrorBoundary } from "@/components/three/CanvasErrorBoundary";
-import { NODE_COUNT } from "@/components/three/cluster/layout";
+import { NODE_COUNT } from "@/components/three/cluster/axial";
 import { measureHeroLayout } from "@/components/three/heroLayout";
 import { useIsMobile, useMediaQuery, usePrefersReducedMotion } from "@/hooks/useMediaQuery";
 import { useChaosRun, useChaosTime } from "@/hooks/useChaos";
@@ -39,6 +39,8 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const canvasBox = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(true);
+  // 3D failed or software-only WebGL (see HeroCanvas): unmount the canvas, keep the static hero.
+  const failed = useSceneState((s) => s.failed);
 
   // Stop the render loop while neither the hero nor Deployments (where the minis land) is visible.
   useEffect(() => {
@@ -121,9 +123,11 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
         className={cn("pointer-events-none absolute inset-0 lg:fixed lg:z-30", !inView && "invisible")}
         style={desktop ? undefined : maskStyle(EDGE_FADE)}
       >
-        <CanvasErrorBoundary>
-          <HeroCanvas mobile={mobile} reducedMotion={reducedMotion} drop={desktop && !reducedMotion} active={inView} />
-        </CanvasErrorBoundary>
+        {!failed && (
+          <CanvasErrorBoundary>
+            <HeroCanvas mobile={mobile} reducedMotion={reducedMotion} drop={desktop && !reducedMotion} active={inView} />
+          </CanvasErrorBoundary>
+        )}
       </div>
     </div>
   );

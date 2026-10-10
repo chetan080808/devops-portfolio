@@ -13,7 +13,7 @@ export class CanvasErrorBoundary extends Component<{ children: ReactNode }, { fa
 
   componentDidCatch(error: unknown) {
     console.warn("[scene] 3D disabled:", error);
-    sceneStore.set({ failed: true });
+    sceneStore.set({ failed: true, failReason: "error" });
   }
 
   render() {
