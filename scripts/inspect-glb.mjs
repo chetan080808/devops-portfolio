@@ -2,7 +2,7 @@
 // Usage: node scripts/inspect-glb.mjs public/models/shipping_container.glb
 import { NodeIO, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import draco3d from "draco3dgltf";
+import { MeshoptDecoder } from "meshoptimizer";
 
 const file = process.argv[2];
 if (!file) {
@@ -12,7 +12,8 @@ if (!file) {
 
 const io = new NodeIO()
   .registerExtensions(ALL_EXTENSIONS)
-  .registerDependencies({ "draco3d.decoder": await draco3d.createDecoderModule() });
+  .registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+await MeshoptDecoder.ready;
 const doc = await io.read(file);
 const root = doc.getRoot();
 

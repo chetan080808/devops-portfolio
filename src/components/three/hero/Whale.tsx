@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
 import { AnimationMixer, Box3, Euler, Quaternion, MathUtils, MeshStandardMaterial, Vector3, type Group, type Mesh, type PerspectiveCamera, type PointLight } from "three";
 import { site } from "@/content/site";
-import { DRACO_PATH, MODELS } from "../assets";
+import { MODELS, useModel } from "../assets";
 import { clamp01, power2InOut, span, useIntroClock } from "../intro";
 import { cloneWithMaterials, disposeMaterials } from "../materials";
 import {
@@ -49,8 +48,8 @@ const yawOf = (d: Vector3) => Math.atan2(d.x, d.z);
  */
 export function Whale() {
   const clock = useIntroClock();
-  const { scene, animations } = useGLTF(MODELS.whale, DRACO_PATH);
-  const { scene: containerScene } = useGLTF(MODELS.container, DRACO_PATH);
+  const { scene, animations } = useModel(MODELS.whale);
+  const { scene: containerScene } = useModel(MODELS.container);
 
   const whale = useMemo(() => {
     const clone = cloneWithMaterials(scene);

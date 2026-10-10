@@ -22,7 +22,7 @@ interface Props {
 }
 
 /**
- * Hero scene. Every model component calls useGLTF itself (one call per URL), so this whole tree
+ * Hero scene. Every model component calls useModel (useGLTF) itself (one call per URL), so this whole tree
  * suspends until all models are parsed and the boot overlay covers the full load.
  */
 export function Scene({ mobile, reducedMotion, drop }: Props) {

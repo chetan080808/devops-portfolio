@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
 import { Color, Mesh, type Material, type MeshStandardMaterial } from "three";
 import { chaos } from "@/lib/chaos";
 import { sceneStore } from "@/lib/sceneStore";
-import { DRACO_PATH, MODELS } from "../assets";
+import { MODELS, useModel } from "../assets";
 import { expoOut, span, useIntroClock } from "../intro";
 import { cloneWithMaterials, disposeMaterials, isNeon, neonMaterialsUnder } from "../materials";
 import { HEALTHY, chaosLook, type ChaosLook } from "./chaosLook";
@@ -33,7 +32,7 @@ interface NeonSlot {
 /** Hex nodes fly in from above, land with a core flash, then the links wire them together. */
 export function Cluster({ mobile }: Props) {
   const clock = useIntroClock();
-  const { scene } = useGLTF(MODELS.node, DRACO_PATH);
+  const { scene } = useModel(MODELS.node);
   const layout = useMemo(() => buildCluster(mobile ? NODE_COUNT.mobile : NODE_COUNT.desktop), [mobile]);
 
   // One clone per node, each with its own materials (Chaos Monkey recolors nodes individually).

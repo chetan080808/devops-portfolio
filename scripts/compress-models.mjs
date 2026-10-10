@@ -1,4 +1,5 @@
-// Draco-compress every raw Blender export into public/models/ and report sizes.
+// meshopt-compress every raw Blender export into public/models/ and report sizes.
+// (meshopt over Draco: Draco's wasm decoder outweighed the bytes it saved; see docs/DECISIONS.md, D-11.)
 //   blender/exports/<name>.raw.glb  →  public/models/<name>.glb
 // Usage: npm run models            (all)
 //        npm run models -- whale   (only names containing "whale")
@@ -24,11 +25,11 @@ mkdirSync(OUT, { recursive: true });
 const raws = readdirSync(SRC).filter((f) => f.endsWith(".raw.glb") && f.includes(filter));
 for (const raw of raws) {
   const name = raw.replace(".raw.glb", ".glb");
-  execFileSync(process.execPath, [CLI, "draco", join(SRC, raw), join(OUT, name)], { stdio: "ignore" });
+  execFileSync(process.execPath, [CLI, "meshopt", join(SRC, raw), join(OUT, name)], { stdio: "ignore" });
 }
 
 let total = 0;
-console.log("\nmodel".padEnd(26) + "raw".padStart(12) + "draco".padStart(12) + "  budget");
+console.log("\nmodel".padEnd(26) + "raw".padStart(12) + "meshopt".padStart(12) + "  budget");
 for (const file of readdirSync(OUT).filter((f) => f.endsWith(".glb"))) {
   const size = statSync(join(OUT, file)).size;
   const rawPath = join(SRC, file.replace(".glb", ".raw.glb"));

@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
 import { Vector3, type Group } from "three";
-import { DRACO_PATH, MODELS } from "./assets";
+import { MODELS, useModel } from "./assets";
 import { power2InOut, power3Out, span, useIntroClock } from "./intro";
 import { NODE_SCALE } from "./cluster/layout";
 import { cloneWithMaterials, disposeMaterials, tunePart } from "./materials";
@@ -35,7 +34,7 @@ const TIP_COLOR = "#9d6bff";
 /** The ship's wheel spins in from deep behind the cluster and lands on the centre node's socket. */
 export function HelmWheel() {
   const clock = useIntroClock();
-  const { scene } = useGLTF(MODELS.helm, DRACO_PATH);
+  const { scene } = useModel(MODELS.helm);
   const wheel = useMemo(() => {
     const clone = cloneWithMaterials(scene);
     // Rim and hub cap share one cyan material in the GLB: give the parts their own copies first.

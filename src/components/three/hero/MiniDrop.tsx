@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo } from "react";
 import { createPortal, useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
 import { MathUtils, Matrix4, PerspectiveCamera, Quaternion, Scene, Vector2, Vector3, type Mesh, type MeshStandardMaterial } from "three";
 import { site } from "@/content/site";
 import { miniDropProgress, scrollStory } from "@/lib/scrollStory";
-import { DRACO_PATH, MODELS } from "../assets";
+import { MODELS, useModel } from "../assets";
 import { disposeMaterials, isNeon } from "../materials";
 import { toCanvasPx, worldPerPixel } from "../projection";
 import { buildMini, miniRegistry } from "./minis";
@@ -65,7 +64,7 @@ const faceMat = new Matrix4();
  * objects far down the viewport. Hand-over matches on-screen position and size exactly.
  */
 export function MiniDrop() {
-  const { scene: containerScene } = useGLTF(MODELS.container, DRACO_PATH);
+  const { scene: containerScene } = useModel(MODELS.container);
   const overlay = useMemo(() => new Scene(), []);
   const minis = useMemo(
     () =>

@@ -9,8 +9,14 @@ export const MODELS = {
   helm: "/models/helm_wheel.glb",
 } as const;
 
-/** Self-hosted copy of three's Draco decoder (public/draco/) — no third-party CDN. */
-export const DRACO_PATH = "/draco/";
+/**
+ * Models are meshopt-compressed (EXT_meshopt_compression). Its decoder ships inside the JS chunk
+ * (~8 KB gzipped), versus ~75 KB for Draco's wasm + wrapper, which cost more than the models saved.
+ * Always load through `useModel` / the preload below: same loader options = same cache entry.
+ */
+export function useModel(url: string) {
+  return useGLTF(url, false, true);
+}
 
 let started = false;
 
@@ -45,6 +51,5 @@ export function startAssetLoading() {
   };
   manager.onError = (url) => console.warn(`[scene] failed to load ${url}`);
 
-  useGLTF.setDecoderPath(DRACO_PATH);
-  Object.values(MODELS).forEach((url) => useGLTF.preload(url, DRACO_PATH));
+  Object.values(MODELS).forEach((url) => useGLTF.preload(url, false, true));
 }

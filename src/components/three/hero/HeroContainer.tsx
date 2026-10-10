@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
 import {
   AdditiveBlending,
   AnimationMixer,
@@ -11,7 +10,7 @@ import {
   type MeshBasicMaterial,
   type PointLight,
 } from "three";
-import { DRACO_PATH, MODELS } from "../assets";
+import { MODELS, useModel } from "../assets";
 import { expoOut, power2InOut, span, useIntroClock } from "../intro";
 import { cloneWithMaterials, disposeMaterials, neonMaterialsUnder, tunePart } from "../materials";
 import {
@@ -51,7 +50,7 @@ function getSpillTexture() {
  */
 export function HeroContainer() {
   const clock = useIntroClock();
-  const { scene, animations } = useGLTF(MODELS.container, DRACO_PATH);
+  const { scene, animations } = useModel(MODELS.container);
   const container = useMemo(() => {
     const clone = cloneWithMaterials(scene, CONTAINER_NEON_BOOST);
     // The boost is for the outer edges; the interior strips would clip to white at that level.
