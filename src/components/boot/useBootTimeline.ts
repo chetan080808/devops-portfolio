@@ -67,12 +67,15 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
     lines.forEach((line, i) => schedule(linesAt + i * LINE_MS, () => push(line)));
     const pullDelay = schedule(linesAt + lines.length * LINE_MS, () => setPulling(true));
 
-    const finish = (outcome: "ready" | "failed" | "timeout") => {
+    const finish = (outcome: "ready" | "deferred" | "failed" | "timeout") => {
       if (finishing || leavingRef.current) return;
       finishing = true;
       setPulling(false);
       const { assetsTotal } = sceneStore.get();
-      if (outcome === "ready") {
+      if (outcome === "deferred") {
+        push("[ OK ] static hero · 3D on demand", "ok");
+        after(90, () => push(`[ OK ] ${readyLine}`, "ok"));
+      } else if (outcome === "ready") {
         push(`[ OK ] pulled ${assetsTotal} layers`, "ok");
         after(90, () => push(`[ OK ] ${readyLine}`, "ok"));
       } else if (outcome === "failed") {
@@ -93,6 +96,7 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
       if (!pullingShown) return;
       const s = sceneStore.get();
       if (s.sceneReady) finish("ready");
+      else if (s.deferred) finish("deferred");
       else if (s.failed) finish("failed");
     };
     const unsubscribe = sceneStore.subscribe(check);

@@ -130,6 +130,8 @@ export interface SiteContent {
     secondaryCta: Link;
     /** value: null renders "—" until you fill it in */
     stats: { label: string; value: string | null }[];
+    /** Phones (and no-GPU browsers) show a still of the 3D scene instead of loading it */
+    staticImage: { src: string; alt: string };
   };
   projects: Project[];
   experience: Milestone[];

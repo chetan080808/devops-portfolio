@@ -15,6 +15,8 @@ export interface SceneState {
   failed: boolean;
   /** Why: "no-gpu" = only software WebGL (static on purpose), "error" = no WebGL / load error */
   failReason: "no-gpu" | "error" | null;
+  /** Phones: the 3D scene isn't loaded unless asked for (static image instead); boot counts it as done */
+  deferred: boolean;
   /** Boot overlay finished or skipped; the hero intro may start */
   bootDone: boolean;
   /** Hero intro: every node landed and linked */
@@ -30,6 +32,7 @@ let state: SceneState = {
   sceneReady: false,
   failed: false,
   failReason: null,
+  deferred: false,
   bootDone: false,
   clusterReady: false,
   progress: 0,
@@ -55,7 +58,7 @@ export const loadProgress = (s: SceneState) => s.progress;
 
 /** Chunk download counts for 20%, asset files for 70%, first rendered frame for the rest. */
 function computeProgress(s: SceneState): number {
-  if (s.sceneReady) return 1;
+  if (s.sceneReady || s.deferred) return 1;
   if (!s.chunkLoaded) return 0;
   const assets = s.assetsTotal > 0 ? s.assetsLoaded / s.assetsTotal : 0;
   return 0.2 + 0.7 * assets;

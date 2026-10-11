@@ -61,6 +61,10 @@ export const site: SiteContent = {
       { label: "pipelines", value: null }, // TODO
       { label: "cloud", value: "AWS" },
     ],
+    staticImage: {
+      src: "/hero/whale-cluster-mobile.webp",
+      alt: "A low-poly whale carrying three containers swims above a glowing hexagonal cluster with a ship's wheel.",
+    },
   },
 
   projects: [
