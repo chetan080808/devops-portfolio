@@ -1,0 +1,26 @@
+# Keep the build context small and free of secrets / local state.
+.git
+.github
+.next
+node_modules
+npm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets / env
+.env
+.env*
+!.env.example
+*.pem
+
+# local-only notes and design sources
+blender
+*.blend
+*.blend1
+
+# infra lives beside the app but isn't part of the image
+Dockerfile
+.dockerignore
+deploy
+infra
+docs
