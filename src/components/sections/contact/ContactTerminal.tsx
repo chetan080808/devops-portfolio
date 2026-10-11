@@ -21,9 +21,7 @@ export function ContactTerminal() {
         <aside className="flex flex-col justify-between gap-8">
           <div>
             <p className="label-mono">status</p>
-            <p className="mt-3 text-2xl font-semibold tracking-tight text-fg">
-              {profile.available ? "Open to new opportunities." : "Currently heads-down."}
-            </p>
+            {profile.status && <p className="mt-3 text-2xl font-semibold tracking-tight text-fg">{profile.status}</p>}
             <div className="mt-4 space-y-2 text-muted">
               {profile.bio.map((line) => (
                 <p key={line}>{line}</p>
@@ -43,7 +41,8 @@ export function ContactTerminal() {
                 .filter((s) => s.kind !== "email")
                 .map((s) => (
                   <ButtonLink key={s.href} href={s.href} variant="ghost" target="_blank" rel="noreferrer">
-                    {s.label} ↗
+                    {s.label}
+                    <span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span>
                   </ButtonLink>
                 ))}
             </div>

@@ -1,4 +1,4 @@
-import type { Accent } from "@/types/content";
+import type { Accent, Project } from "@/types/content";
 
 /** Static Tailwind class maps per accent so classes survive purging. */
 export const accentText: Record<Accent, string> = {
@@ -27,4 +27,11 @@ export const accentHex: Record<Accent, string> = {
   violet: "#8b5cf6",
   success: "#22c55e",
   warning: "#f59e0b",
+};
+
+/** Project status badge colour: running green, completed cyan, pending amber. */
+export const statusAccent: Record<Project["status"], Accent> = {
+  Running: "success",
+  Completed: "cyan",
+  Pending: "warning",
 };

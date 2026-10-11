@@ -8,7 +8,7 @@ export function Hero() {
   const { profile, hero } = site;
 
   return (
-    <section id="top" className="relative flex min-h-[min(100svh,58rem)] items-center px-4 pt-28 pb-14 sm:px-6">
+    <section id="top" aria-labelledby="hero-title" className="relative flex min-h-[min(100svh,58rem)] items-center px-4 pt-28 pb-14 sm:px-6">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_1fr]">
         {/* data-hero-text: the 3D whale keeps clear of this column's content (HeroStage) */}
         <div data-hero-text>
@@ -17,7 +17,7 @@ export function Hero() {
             {hero.eyebrow}
           </p>
 
-          <h1 className="text-5xl leading-[0.95] font-semibold tracking-tight text-balance sm:text-6xl lg:text-7xl">
+          <h1 id="hero-title" className="text-5xl leading-[0.95] font-semibold tracking-tight text-balance sm:text-6xl lg:text-7xl">
             <span className="text-gradient">{profile.name}</span>
           </h1>
           <p className="mt-5 font-mono text-sm text-cyan sm:text-base">
@@ -32,7 +32,7 @@ export function Hero() {
                 →
               </span>
             </ButtonLink>
-            <ButtonLink href={hero.secondaryCta.href} variant="ghost" download>
+            <ButtonLink href={hero.secondaryCta.href} variant="ghost" download={profile.resumeFileName}>
               {hero.secondaryCta.label}
               <span aria-hidden="true">↓</span>
             </ButtonLink>

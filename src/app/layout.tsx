@@ -21,8 +21,11 @@ export const metadata: Metadata = {
   title: site.meta.title,
   description: site.meta.description,
   authors: [{ name: site.profile.name }],
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
+    siteName: site.profile.name,
+    locale: "en_US",
     title: site.meta.title,
     description: site.meta.description,
     url: "/",

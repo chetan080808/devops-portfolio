@@ -4,6 +4,9 @@ import { useEffect, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Project } from "@/types/content";
 import { Badge } from "@/components/ui/Badge";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useModalLock } from "@/hooks/useModalLock";
+import { statusAccent } from "@/lib/accent";
 
 const INDENT = "    ";
 const INDENT2 = "      ";
@@ -28,23 +31,26 @@ function StringList({ items, className }: { items: string[]; className: string }
 /** Modal detail view styled like `docker inspect` JSON output. */
 export function InspectPanel({ project, onClose }: { project: Project | null; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
+  // Before the focus effect below: it records the opener before focus moves into the panel.
+  useModalLock(!!project);
+  useFocusTrap(dialogRef, !!project);
 
   useEffect(() => {
     if (!project) return;
-    const previous = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
+    closeRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-      previous?.focus();
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [project, onClose]);
+
+  // Empty fields (TODO placeholders stripped in production, see lib/todo) are left out.
+  const architecture = project?.inspect.architecture ?? [];
+  const results = project?.inspect.results ?? [];
+  const links = project?.links ?? [];
 
   return (
     <AnimatePresence>
@@ -64,6 +70,7 @@ export function InspectPanel({ project, onClose }: { project: Project | null; on
             className="absolute inset-0 bg-bg/80 backdrop-blur-sm"
           />
           <motion.div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="inspect-title"
@@ -89,36 +96,53 @@ export function InspectPanel({ project, onClose }: { project: Project | null; on
                 onClick={onClose}
                 className="rounded px-2 py-0.5 font-mono text-xs text-muted transition-[color,background-color,transform] hover:bg-white/5 hover:text-fg active:scale-95"
               >
-                esc ✕
+                <span className="sr-only">Close</span>
+                <span aria-hidden="true">esc ✕</span>
               </button>
             </div>
 
-            <div className="overflow-y-auto p-5 font-mono text-[0.8rem] leading-relaxed sm:p-6">
+            <div tabIndex={0} aria-label="Inspect output" className="overflow-y-auto overscroll-contain p-5 font-mono text-[0.8rem] leading-relaxed sm:p-6">
               <div className="mb-5 flex flex-wrap items-center gap-3">
                 <h3 id="inspect-title" className="font-sans text-xl font-semibold text-fg">
                   {project.name}
                 </h3>
-                <Badge accent="success">{project.status}</Badge>
+                <Badge accent={statusAccent[project.status]}>{project.status}</Badge>
               </div>
 
               <pre className="font-mono break-words whitespace-pre-wrap text-muted">
                 <span className="text-faint">{"[\n  {\n"}</span>
-                {INDENT}<Key>Problem</Key>: <span className="text-fg">&quot;{project.inspect.problem}&quot;</span>,{"\n"}
-                {INDENT}<Key>Architecture</Key>: [{"\n"}
-                <StringList items={project.inspect.architecture} className="text-cyan" />
-                {INDENT}],{"\n"}
-                {INDENT}<Key>Role</Key>: <span className="text-fg">&quot;{project.inspect.role}&quot;</span>,{"\n"}
-                {INDENT}<Key>Results</Key>: [{"\n"}
-                <StringList items={project.inspect.results} className="text-success" />
-                {INDENT}],{"\n"}
+                {project.inspect.problem && (
+                  <>
+                    {INDENT}<Key>Problem</Key>: <span className="text-fg">&quot;{project.inspect.problem}&quot;</span>,{"\n"}
+                  </>
+                )}
+                {architecture.length > 0 && (
+                  <>
+                    {INDENT}<Key>Architecture</Key>: [{"\n"}
+                    <StringList items={architecture} className="text-cyan" />
+                    {INDENT}],{"\n"}
+                  </>
+                )}
+                {project.inspect.role && (
+                  <>
+                    {INDENT}<Key>Role</Key>: <span className="text-fg">&quot;{project.inspect.role}&quot;</span>,{"\n"}
+                  </>
+                )}
+                {results.length > 0 && (
+                  <>
+                    {INDENT}<Key>Results</Key>: [{"\n"}
+                    <StringList items={results} className="text-success" />
+                    {INDENT}],{"\n"}
+                  </>
+                )}
                 {INDENT}<Key>Config.Stack</Key>: [
                 <span className="text-warning">{project.stack.map((s) => `"${s}"`).join(", ")}</span>]{"\n"}
                 <span className="text-faint">{"  }\n]"}</span>
               </pre>
 
-              {project.links.length > 0 && (
+              {links.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-5">
-                  {project.links.map((link) => (
+                  {links.map((link) => (
                     <a
                       key={link.href}
                       href={link.href}
@@ -126,7 +150,8 @@ export function InspectPanel({ project, onClose }: { project: Project | null; on
                       rel="noreferrer"
                       className="rounded-md border border-line-strong px-3 py-1.5 text-xs text-fg transition-[color,border-color,background-color,transform] hover:border-cyan/50 hover:bg-cyan/5 hover:text-cyan active:scale-95"
                     >
-                      {link.label} ↗
+                      {link.label}
+                      <span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span>
                     </a>
                   ))}
                 </div>

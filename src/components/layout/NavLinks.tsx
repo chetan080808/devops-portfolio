@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
  * The section under a probe line ~35% down the viewport, or null while still in the hero.
  * Reads live positions (GSAP pins add spacers, so offsets measured once would drift).
  */
-function useActiveSection(ids: string[]) {
+export function useActiveSection(ids: string[]) {
   const [active, setActive] = useState<string | null>(null);
   useEffect(() => {
     let raf = 0;
@@ -40,11 +40,11 @@ function useActiveSection(ids: string[]) {
   return active;
 }
 
-const IDS = site.nav.map((item) => item.href.slice(1));
+export const NAV_IDS = site.nav.map((item) => item.href.slice(1));
 
 /** Section links; the one in view gets a sliding highlight. */
 export function NavLinks() {
-  const active = useActiveSection(IDS);
+  const active = useActiveSection(NAV_IDS);
   const reduce = useReducedMotion();
 
   return (

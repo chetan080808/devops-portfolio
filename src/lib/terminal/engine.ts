@@ -1,4 +1,5 @@
 import { site } from "@/content/site";
+import type { Project } from "@/types/content";
 
 /**
  * Terminal command engine (pure). Input is only ever matched against the fixed command table below:
@@ -11,6 +12,13 @@ export interface Segment {
   tone?: Tone;
   /** Renders as a link (mailto:, https:, or a site path) */
   href?: string;
+  /** Link downloads the file under this name */
+  download?: string;
+  /**
+   * Table cell: a fixed width in characters, or "fill" (takes the rest of the line, truncated
+   * with an ellipsis). A line with any cell renders on one line and never wraps.
+   */
+  col?: number | "fill";
 }
 export type Line = Segment[];
 
@@ -47,6 +55,9 @@ function shortId(id: string) {
   return (h >>> 0).toString(16).padStart(8, "0") + id.length.toString(16).padStart(4, "0");
 }
 
+/** `docker ps -a` wording: a completed project exited cleanly. */
+const DOCKER_STATUS: Record<Project["status"], string> = { Running: "Up", Completed: "Exited (0)", Pending: "Created" };
+
 const projectStatus = (s: string): Tone => (s === "Running" ? "ok" : s === "Pending" ? "warn" : "muted");
 
 const COMMANDS: Command[] = [
@@ -77,10 +88,10 @@ const COMMANDS: Command[] = [
     summary: "list deployments",
     run: () =>
       lines(
-        ...site.projects.map((p) => [
-          t(pad(p.id, 32), "accent"),
-          t(pad(p.status, 10), projectStatus(p.status)),
-          t(p.name, "muted"),
+        [{ text: "STATUS", tone: "faint", col: 12 }, { text: "PROJECT", tone: "faint", col: "fill" }],
+        ...site.projects.map((p): Line => [
+          { text: p.status, tone: projectStatus(p.status), col: 12 },
+          { text: p.name, tone: "plain", col: "fill" },
         ]),
       ),
   },
@@ -89,11 +100,11 @@ const COMMANDS: Command[] = [
     summary: "projects as pods",
     run: () =>
       lines(
-        [t(pad("NAME", 32) + pad("READY", 8) + "STATUS", "faint")],
-        ...site.projects.map((p) => [
-          t(pad(p.id, 32), "plain"),
-          t(pad(p.status === "Running" ? "1/1" : "0/1", 8), "muted"),
-          t(p.status, projectStatus(p.status)),
+        [{ text: "NAME", tone: "faint", col: "fill" }, { text: "READY", tone: "faint", col: 7 }, { text: "STATUS", tone: "faint", col: 10 }],
+        ...site.projects.map((p): Line => [
+          { text: p.id, tone: "plain", col: "fill" },
+          { text: p.status === "Running" ? "1/1" : "0/1", tone: "muted", col: 7 },
+          { text: p.status, tone: projectStatus(p.status), col: 10 },
         ]),
       ),
   },
@@ -102,12 +113,11 @@ const COMMANDS: Command[] = [
     summary: "projects as containers",
     run: () =>
       lines(
-        [t(pad("CONTAINER ID", 15) + pad("IMAGE", 34) + pad("STATUS", 10) + "NAMES", "faint")],
-        ...site.projects.map((p) => [
-          t(pad(shortId(p.id).slice(0, 12), 15), "muted"),
-          t(pad(`${p.id}:latest`, 34), "plain"),
-          t(pad(p.status === "Running" ? "Up" : "Exited", 10), p.status === "Running" ? "ok" : "warn"),
-          t(p.id, "accent"),
+        [{ text: "CONTAINER ID", tone: "faint", col: 14 }, { text: "IMAGE", tone: "faint", col: "fill" }, { text: "STATUS", tone: "faint", col: 11 }],
+        ...site.projects.map((p): Line => [
+          { text: shortId(p.id).slice(0, 12), tone: "muted", col: 14 },
+          { text: `${p.id}:latest`, tone: "plain", col: "fill" },
+          { text: DOCKER_STATUS[p.status], tone: projectStatus(p.status), col: 11 },
         ]),
       ),
   },
@@ -118,14 +128,17 @@ const COMMANDS: Command[] = [
       lines(
         [t(`${site.profile.name} — ${site.profile.title}`, "plain")],
         ...site.experience.map((m) => [t(pad(m.period, 18), "faint"), t(`${m.title} @ ${m.org}`, "muted")]),
-        [t("Full PDF: ", "muted"), link(site.profile.resumeUrl, site.profile.resumeUrl)],
+        [t("Full PDF: ", "muted"), { ...link(site.profile.resumeFileName, site.profile.resumeUrl), download: site.profile.resumeFileName }],
       ),
   },
   {
     name: "contact",
     summary: "how to reach me",
     run: () =>
-      lines([t("email  ", "faint"), link(site.profile.email, `mailto:${site.profile.email}`)], [t(site.profile.available ? "Open to new opportunities." : "Currently heads-down.", "ok")]),
+      lines(
+        [t("email  ", "faint"), link(site.profile.email, `mailto:${site.profile.email}`)],
+        ...(site.profile.status ? [[t(site.profile.status, "ok")]] : []),
+      ),
   },
   {
     name: "social",

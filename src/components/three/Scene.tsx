@@ -13,6 +13,7 @@ import { IntroTicker } from "./IntroTicker";
 import { FloorGrid } from "./FloorGrid";
 import { Lighting } from "./Lighting";
 import { usePointerFollow } from "./pointer";
+import { HeroSet } from "./HeroSet";
 
 interface Props {
   mobile: boolean;
@@ -35,10 +36,12 @@ export function Scene({ mobile, reducedMotion, drop }: Props) {
       <IntroTicker />
       <CameraRig />
       <Lighting />
-      <FloorGrid />
-      <Cluster mobile={mobile} />
-      <HelmWheel />
-      <HeroContainer />
+      <HeroSet>
+        <FloorGrid />
+        <Cluster mobile={mobile} />
+        <HelmWheel />
+        <HeroContainer />
+      </HeroSet>
       <Whale />
       {drop && <MiniDrop />}
       <Bloom strength={mobile ? 0.26 : 0.32} />

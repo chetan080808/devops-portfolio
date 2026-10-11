@@ -135,7 +135,7 @@ export function Terminal() {
       </div>
 
       <div className="p-5 font-mono text-[0.8rem] leading-relaxed sm:p-6">
-        <div ref={scrollRef} className="h-[17rem] overflow-y-auto overscroll-contain pr-1">
+        <div ref={scrollRef} tabIndex={0} aria-label="Terminal history" className="h-[17rem] overflow-y-auto overscroll-contain pr-1">
           <div role="log" aria-live="polite" aria-label="Terminal output">
             {entries.map((entry) =>
               entry.input !== null ? (
@@ -143,23 +143,34 @@ export function Terminal() {
                   <span className="text-success">{prompt}</span> <span className="text-fg">{entry.input}</span>
                 </p>
               ) : (
-                <p key={entry.id} className="whitespace-pre-wrap">
-                  {entry.line.map((seg, i) =>
-                    seg.href ? (
+                <p
+                  key={entry.id}
+                  // Table rows (cells with `col`) stay on one line; plain output wraps.
+                  className={entry.line.some((seg) => seg.col) ? "flex whitespace-pre" : "whitespace-pre-wrap"}
+                >
+                  {entry.line.map((seg, i) => {
+                    const cell =
+                      seg.col === "fill"
+                        ? { className: "min-w-0 flex-1 truncate", title: seg.text }
+                        : seg.col
+                          ? { className: "shrink-0", style: { width: `${seg.col}ch` } }
+                          : null;
+                    return seg.href ? (
                       <a
                         key={i}
                         href={seg.href}
+                        download={seg.download}
                         {...(seg.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
                         className="text-cyan underline decoration-cyan/40 underline-offset-2 hover:decoration-cyan"
                       >
                         {seg.text}
                       </a>
                     ) : (
-                      <span key={i} className={toneClass[seg.tone ?? "plain"]}>
+                      <span key={i} title={cell?.title} style={cell?.style} className={cn(toneClass[seg.tone ?? "plain"], cell?.className)}>
                         {seg.text}
                       </span>
-                    ),
-                  )}
+                    );
+                  })}
                 </p>
               ),
             )}

@@ -3,6 +3,7 @@ import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { MiniDropScroll } from "./MiniDropScroll";
 import { ProjectGrid } from "./ProjectGrid";
+import { withoutTodos } from "@/lib/todo";
 
 export function Deployments() {
   const running = site.projects.filter((p) => p.status === "Running").length;
@@ -19,7 +20,7 @@ export function Deployments() {
           {running}/{site.projects.length} running
         </span>
       </p>
-      <ProjectGrid projects={site.projects} />
+      <ProjectGrid projects={site.projects.map(withoutTodos)} />
       <MiniDropScroll />
     </Section>
   );

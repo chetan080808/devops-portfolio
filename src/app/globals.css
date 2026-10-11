@@ -78,8 +78,9 @@
 @utility glass {
   background: linear-gradient(180deg, rgb(20 27 44 / 0.6), rgb(10 14 24 / 0.55));
   border: 1px solid var(--color-line);
-  backdrop-filter: blur(14px) saturate(140%);
+  /* Prefixed first: the CSS minifier keeps only the LAST of the pair, and Chrome ignores the prefix. */
   -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
 }
 
 @utility glow-edge {

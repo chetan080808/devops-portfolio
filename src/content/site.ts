@@ -9,27 +9,27 @@ import type { SiteContent } from "@/types/content";
 
 export const site: SiteContent = {
   meta: {
-    siteUrl: "https://example.com", // TODO: your production domain
-    title: "Your Name — DevOps & Platform Engineer", // TODO: your name
+    siteUrl: "https://example.com", // TODO: your production domain (Phase 7)
+    title: "Chetan Namane — DevOps Engineer · AWS & AI",
     description:
-      "Portfolio of a DevOps & Platform Engineer: Kubernetes, CI/CD, cloud infrastructure on AWS. Scroll to watch the deployment.", // TODO: tweak
-    repoUrl: "https://github.com/your-handle/devops-portfolio", // TODO: repo URL
+      "Chetan Namane, DevOps engineer with ~3 years of building and operating AWS infrastructure, CI/CD pipelines and containerized workloads in production. Scroll to watch the deployment.",
+    repoUrl: "https://github.com/chetan080808/devops-portfolio",
   },
 
   profile: {
-    name: "Your Name", // TODO: your full name
-    handle: "you", // TODO: short lowercase handle used in terminal prompts
-    title: "DevOps & Platform Engineer", // TODO: confirm title
+    name: "Chetan Namane",
+    handle: "chetan",
+    title: "DevOps Engineer · AWS & AI",
     pitch:
-      "I build the paved roads that ship software: containerized workloads, Kubernetes clusters and CI/CD pipelines that make deploys boring.", // TODO: your one-liner
-    location: "TODO: City, Country",
-    email: "you@example.com", // TODO: your email
-    resumeUrl: "/resume.pdf", // TODO: drop your resume at public/resume.pdf
-    available: true,
+      "DevOps engineer with ~3 years of building and operating AWS infrastructure, CI/CD pipelines and containerized workloads in production.",
+    location: "Mumbai, India",
+    email: "chetannamne2609@gmail.com",
+    resumeUrl: "/resume.pdf",
+    resumeFileName: "Chetan-Namane-Resume.pdf",
+    status: "Open to DevOps / Cloud / Platform Engineering roles",
     bio: [
-      // TODO: replace with your own short bio (2–3 lines)
-      "DevOps engineer focused on Kubernetes, AWS and automated delivery pipelines.",
-      "I like turning manual, fragile release processes into repeatable, observable systems.",
+      "Now: DevOps Engineer at CancerMitr, running end-to-end DevOps for a production healthcare platform.",
+      "Before: Cloud Support Engineer at Hexaware Technologies, then freelance AWS Cloud Engineer.",
     ],
   },
 
@@ -56,9 +56,8 @@ export const site: SiteContent = {
     primaryCta: { label: "View Deployments", href: "#deployments" },
     secondaryCta: { label: "Download Resume", href: "/resume.pdf" },
     stats: [
-      // TODO: fill with real, defensible values (e.g. "3"). null renders "—".
-      { label: "deployments", value: null }, // TODO
-      { label: "pipelines", value: null }, // TODO
+      { label: "experience", value: "~3 yrs" },
+      { label: "uptime", value: "99.9%" },
       { label: "cloud", value: "AWS" },
     ],
     staticImage: {
@@ -74,17 +73,16 @@ export const site: SiteContent = {
       status: "Running",
       stack: ["PHP", "MySQL", "Docker", "Kubernetes", "AWS EC2", "GitHub Actions", "Trivy"],
       impact:
-        "Containerized a PHP + MySQL app and shipped it to Kubernetes on EC2 with a scanned, fully automated CI/CD pipeline.",
+        "Containerized a PHP + MySQL app and deployed it to Kubernetes on AWS EC2, with a GitHub Actions CI/CD pipeline that scans images with Trivy.",
       inspect: {
         problem:
           "TODO: what was painful before? (e.g. manual deploys over SSH, no rollback, unscanned images).",
         architecture: [
-          "PHP app + MySQL, each in its own Docker image",
-          "Kubernetes cluster on AWS EC2 (Deployments, Services, PersistentVolume for MySQL)",
-          "GitHub Actions: build → Trivy image scan → push → kubectl rollout",
-          "TODO: ingress / secrets / monitoring details",
+          "PHP + MySQL app containerized with Docker",
+          "Kubernetes cluster on AWS EC2",
+          "GitHub Actions CI/CD pipeline with Trivy image scanning",
         ],
-        role: "TODO: your role (e.g. sole engineer — design, IaC, pipeline, deployment).",
+        role: "Sole engineer, end to end: containerization, cluster setup and CI/CD.",
         results: [
           "TODO: a measurable result (e.g. deploy time before → after)",
           "TODO: a security outcome of the Trivy scan gate",
@@ -97,74 +95,101 @@ export const site: SiteContent = {
     {
       id: "adobe-analytics-ingest",
       name: "Adobe Analytics → AWS Data Ingestion",
-      status: "Running",
-      stack: ["AWS", "Adobe Analytics", "TODO"],
-      impact: "TODO: one-line impact for the Adobe Analytics → AWS data pipeline.",
+      status: "Completed", // engagement ended Feb 2026
+      stack: ["AWS Lambda", "Step Functions", "S3", "Parquet", "Python", "CodePipeline", "CodeBuild", "CloudFormation"],
+      impact:
+        "Moved a production Adobe Analytics ingestion pipeline from Fivetran to a fully serverless AWS architecture across Dev, QA and Production.",
       inspect: {
-        problem: "TODO: what data needed to move and why.",
-        architecture: ["TODO: source → transport → storage → consumers"],
-        role: "TODO: your role.",
-        results: ["TODO: volume, latency, cost or reliability outcome"],
+        problem: "A production Adobe Analytics ingestion pipeline ran on Fivetran and needed to move to AWS.",
+        architecture: [
+          "Fully serverless AWS architecture, replicated across Dev, QA and Production",
+          "Partitioned Parquet datasets on S3",
+          "Git-triggered CI/CD: GitHub → CodePipeline → CodeBuild → CloudFormation, for multi-account deployments",
+        ],
+        role: "AWS Cloud Engineer (freelance), Dec 2025 – Feb 2026.",
+        results: [
+          "Automated historical backfill of 2+ years of data across 3 ingestion cadences with a Python orchestration script",
+          "Full Infrastructure as Code parity across environments",
+          "Self-service multi-account deployments",
+        ],
       },
-      links: [{ label: "GitHub", href: "https://github.com/TODO" }], // TODO
+      links: [], // client work: no public link
     },
     {
       id: "healthcare-platform-infra",
       name: "Healthcare Platform Infrastructure",
       status: "Running",
-      stack: ["AWS", "Docker", "GitHub Actions", "Vercel", "TODO"],
-      impact: "TODO: cloud, CI/CD and deployment infrastructure for a healthcare platform.",
+      stack: ["AWS EC2", "RDS PostgreSQL", "Docker", "Docker Compose", "Nginx", "GitHub Actions", "CloudWatch", "KMS", "Vercel", "Expo EAS"],
+      impact:
+        "Repeatable, secure and observable delivery for a production healthcare platform, across staging and production.",
       inspect: {
-        problem: "TODO: the problem this infrastructure solved.",
-        architecture: ["TODO: AWS services, container setup, CI/CD flow, Vercel frontends"],
-        role: "TODO: your role.",
-        results: ["TODO: measurable outcome"],
+        problem:
+          "A production healthcare platform needed repeatable, secure, observable delivery across staging and production.",
+        architecture: [
+          "Docker, Nginx and Docker Compose on EC2 (staging + production)",
+          "GitHub Actions CI/CD with self-hosted runners for the backend services and the React Native / Expo (EAS) mobile app",
+          "Amazon RDS PostgreSQL",
+          "CloudWatch centralized logging",
+          "KMS encryption at rest",
+        ],
+        role: "DevOps Engineer at CancerMitr: owns DevOps end to end.",
+        results: [
+          "Eliminated environment drift",
+          "Automated build, test and deployment",
+          "Migrated the production database from MySQL to PostgreSQL on RDS with zero data loss",
+          "Encryption at rest across database, file storage and app servers",
+          "Consolidated GitHub and Vercel into company-controlled org accounts with branch protection",
+        ],
       },
-      links: [{ label: "Live", href: "https://TODO" }], // TODO
+      links: [], // no public link
     },
   ],
 
   experience: [
-    // TODO: replace with your real career/education milestones (oldest → newest)
+    // Oldest → newest. Build and Test overlap in time (worked while studying); the periods show it.
     {
       id: "edu",
       stage: "build",
-      title: "TODO: Degree / Program",
-      org: "TODO: University",
-      period: "20XX – 20XX",
-      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
+      title: "B.Sc. in Information Technology",
+      org: "SIES College of Arts, Science and Commerce, Mumbai",
+      period: "2022 – 2025",
+      duration: "3y",
       summary: "Where the foundations were compiled.",
-      highlights: ["TODO: relevant coursework or achievement"],
+      highlights: [],
     },
     {
-      id: "cert",
+      id: "hexaware",
       stage: "test",
-      title: "TODO: Certification / Bootcamp",
-      org: "TODO: Issuer",
-      period: "20XX",
-      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
-      summary: "Skills validated under test.",
-      highlights: ["TODO: e.g. AWS / CKA / Terraform"],
+      title: "Cloud Support Engineer",
+      org: "Hexaware Technologies, Mumbai",
+      period: "Feb 2024 – Nov 2025",
+      duration: "1y 10mo",
+      summary: "Started while still studying: this stage overlaps the Build stage.",
+      highlights: [
+        "Sustained 99.9% uptime and reduced downtime by 20% with proactive CloudWatch monitoring and automated alerting",
+        "Resolved 30+ AWS/DevOps tickets weekly at 95% SLA compliance",
+      ],
     },
     {
-      id: "role-1",
+      id: "freelance",
       stage: "deploy",
-      title: "TODO: DevOps Engineer",
-      org: "TODO: Company",
-      period: "20XX – Present",
-      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
-      summary: "Shipped to production.",
-      highlights: ["TODO: biggest win", "TODO: second win"],
+      title: "AWS Cloud Engineer",
+      org: "Freelance",
+      period: "Dec 2025 – Feb 2026",
+      duration: "3mo",
+      summary: "Adobe Analytics → AWS serverless migration across Dev, QA and Production.",
+      highlights: [],
     },
     {
-      id: "now",
+      id: "cancermitr",
       stage: "monitor",
-      title: "Platform Engineering",
-      org: "Continuous improvement",
-      period: "Now",
-      duration: null, // TODO: real duration, e.g. "4y" or "8mo"
-      summary: "Observing, iterating, leveling up.",
-      highlights: ["TODO: what you're learning or building next"],
+      title: "DevOps Engineer",
+      org: "CancerMitr",
+      period: "Feb 2026 – Present",
+      duration: null,
+      since: "2026-02", // duration = Feb 2026 → today, computed when the page loads
+      summary: "End-to-end DevOps for a production healthcare platform.",
+      highlights: ["MySQL → PostgreSQL migration on RDS with zero data loss"],
       current: true,
     },
   ],
@@ -172,101 +197,115 @@ export const site: SiteContent = {
   pipeline: {
     job: "career-pipeline",
     branch: "main",
-    // The side-projects branch lists the projects above, running in parallel with this stage
-    parallel: { label: "side-projects", alongside: "role-1" },
+    // Parallel branch drawn under the `alongside` stage
+    parallel: {
+      label: "side-projects",
+      alongside: "cancermitr",
+      jobs: ["ScanCure AI", "Car Rental Portal on Kubernetes", "This portfolio"],
+    },
   },
 
   dashboard: [
-    // Only claims you can back up. Numeric values stay `null` (renders "No data")
-    // until you fill in a real number. Layout: 4 columns, `wide` panels take 2.
+    // Only claims you can back up. Layout: 4 columns, `wide` panels take 2.
     {
       kind: "stat",
-      id: "pipelines",
-      title: "Pipelines shipped",
-      value: null, // TODO: real count of CI/CD pipelines you've built
-      caption: "GitHub Actions · build → scan → deploy",
+      id: "uptime",
+      title: "Uptime sustained",
+      value: 99.9,
+      decimals: 1,
+      suffix: "%",
+      caption: "client production · Hexaware",
       accent: "success",
     },
     {
-      kind: "sparkline",
-      id: "cicd",
-      title: "Build → deploy time",
-      wide: true,
-      value: null, // TODO: real median minutes, e.g. 4 (and set suffix: " min")
-      caption: "median pipeline duration",
-      accent: "violet",
-      series: null, // TODO: real durations normalized 0–100, oldest → newest
-    },
-    {
-      kind: "text",
-      id: "docker",
-      title: "Docker",
-      headline: "Containerized apps",
-      caption: "PHP + MySQL services packaged as images", // TODO: add e.g. multi-stage builds if true
-      accent: "violet",
-    },
-    {
-      kind: "text",
-      id: "k8s",
-      title: "Kubernetes",
-      headline: "Self-hosted on EC2",
-      caption: "Car Rental Portal runs on a cluster on AWS EC2", // TODO: add the objects you've used
+      kind: "stat",
+      id: "downtime",
+      title: "Downtime reduced",
+      value: 20,
+      suffix: "%",
+      caption: "proactive CloudWatch monitoring + alerting",
       accent: "cyan",
     },
     {
-      kind: "list",
+      kind: "gauge",
+      id: "sla",
+      title: "SLA compliance",
+      value: 95,
+      caption: "AWS / DevOps support tickets",
+      accent: "violet",
+    },
+    {
+      kind: "stat",
+      id: "tickets",
+      title: "Tickets resolved weekly",
+      value: 30,
+      suffix: "+",
+      caption: "AWS / DevOps tickets",
+      accent: "cyan",
+    },
+    {
+      kind: "tags",
       id: "cloud",
-      title: "Cloud: AWS",
+      title: "Cloud services: AWS",
       wide: true,
+      accent: "cyan",
       items: [
-        { label: "EC2", detail: "Kubernetes nodes", accent: "cyan" },
-        { label: "TODO", detail: "add AWS services you've used", accent: "warning" },
-        { label: "TODO", detail: "e.g. S3 / IAM / VPC", accent: "warning" },
-        { label: "TODO", detail: "ingestion pipeline services", accent: "warning" },
+        "EC2", "S3", "VPC", "IAM", "RDS", "EKS", "Lambda", "Step Functions", "EventBridge", "DynamoDB",
+        "CloudFront", "API Gateway", "Route 53", "Secrets Manager", "KMS", "SES", "SNS", "ELB/ALB", "CloudWatch",
       ],
+    },
+    {
+      kind: "stat",
+      id: "lambda-cost",
+      title: "Lambda cost reduction",
+      value: 25,
+      prefix: "~",
+      suffix: "%",
+      caption: "ScanCure AI · memory sizing + runtime tuning",
+      accent: "success",
+    },
+    {
+      kind: "stat",
+      id: "backfill",
+      title: "Historical data backfilled",
+      value: 2,
+      suffix: "+ yrs",
+      caption: "3 ingestion cadences · Python orchestration",
+      accent: "violet",
+    },
+    {
+      kind: "tags",
+      id: "toolbox",
+      title: "Toolbox",
+      wide: true,
+      accent: "violet",
+      items: [
+        "Docker", "Docker Compose", "Kubernetes", "EKS", "Nginx", "Terraform", "CloudFormation", "GitHub Actions", "Jenkins",
+        "CodePipeline", "CodeBuild", "Python", "Bash", "Boto3", "PostgreSQL", "MySQL", "Prometheus", "Grafana",
+      ],
+    },
+    {
+      kind: "text",
+      id: "environments",
+      title: "Environments managed",
+      headline: "Dev · QA · Production",
+      caption: "Infrastructure as Code parity across environments",
+      accent: "cyan",
     },
     {
       kind: "text",
       id: "security",
       title: "Supply-chain security",
       headline: "Trivy image scanning",
-      caption: "vulnerability scan in every pipeline before push",
+      caption: "in the Car Rental Portal CI/CD pipeline",
       accent: "success",
-    },
-    {
-      kind: "stat",
-      id: "projects",
-      title: "Projects in production",
-      value: null, // TODO: real number
-      caption: "see Deployments above",
-      accent: "cyan",
-    },
-    {
-      kind: "list",
-      id: "toolbox",
-      title: "Toolbox",
-      wide: true,
-      items: [
-        { label: "GitHub Actions", detail: "CI/CD", accent: "success" },
-        { label: "Docker", detail: "containers", accent: "cyan" },
-        { label: "Vercel", detail: "frontend hosting", accent: "violet" },
-        { label: "TODO", detail: "add yours", accent: "warning" },
-      ],
-    },
-    {
-      kind: "text",
-      id: "learning",
-      title: "Currently learning",
-      headline: "TODO: e.g. Terraform",
-      caption: "TODO: what you're levelling up next",
-      accent: "warning",
     },
   ],
 
   socials: [
-    { kind: "github", label: "GitHub", href: "https://github.com/TODO", handle: "github.com/TODO" }, // TODO
-    { kind: "linkedin", label: "LinkedIn", href: "https://linkedin.com/in/TODO", handle: "linkedin.com/in/TODO" }, // TODO
-    { kind: "email", label: "Email", href: "mailto:you@example.com", handle: "you@example.com" }, // TODO
+    { kind: "github", label: "GitHub", href: "https://github.com/chetan080808", handle: "github.com/chetan080808" },
+    { kind: "linkedin", label: "LinkedIn", href: "https://www.linkedin.com/in/chetan-namane/", handle: "linkedin.com/in/chetan-namane" },
+    { kind: "email", label: "Email", href: "mailto:chetannamne2609@gmail.com", handle: "chetannamne2609@gmail.com" },
   ],
 
   footer: {

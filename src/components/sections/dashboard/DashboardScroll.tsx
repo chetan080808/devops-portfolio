@@ -66,16 +66,17 @@ function reveal(panel: HTMLElement, delay: number) {
     const target = Number(el.dataset.value);
     if (!Number.isFinite(target)) return;
     const decimals = Number(el.dataset.decimals ?? 0);
+    const prefix = el.dataset.prefix ?? "";
     const suffix = el.dataset.suffix ?? "";
     const counter = { v: 0 };
-    el.textContent = `${(0).toFixed(decimals)}${suffix}`;
+    el.textContent = `${prefix}${(0).toFixed(decimals)}${suffix}`;
     tl.to(
       counter,
       {
         v: target,
         duration: 1.1,
         ease: "power2.out",
-        onUpdate: () => (el.textContent = `${counter.v.toFixed(decimals)}${suffix}`),
+        onUpdate: () => (el.textContent = `${prefix}${counter.v.toFixed(decimals)}${suffix}`),
       },
       0.25,
     );

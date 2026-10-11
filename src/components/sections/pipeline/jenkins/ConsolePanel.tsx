@@ -5,26 +5,26 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { site } from "@/content/site";
 import { consoleLines, type PipelineStage } from "./model";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useModalLock } from "@/hooks/useModalLock";
 
 const noopSubscribe = () => () => {};
 
 /** Jenkins "Console Output" for one stage, as a modal. */
 export function ConsolePanel({ stage, onClose }: { stage: PipelineStage | null; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
+  // Before the focus effect below: it records the opener before focus moves into the panel.
+  useModalLock(!!stage);
+  useFocusTrap(dialogRef, !!stage);
 
   useEffect(() => {
     if (!stage) return;
-    const previous = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
+    closeRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-      previous?.focus();
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [stage, onClose]);
 
   const running = stage?.final === "running";
@@ -45,6 +45,7 @@ export function ConsolePanel({ stage, onClose }: { stage: PipelineStage | null; 
         >
           <button type="button" aria-label="Close console output" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-bg/80 backdrop-blur-sm" />
           <motion.div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="console-title"
@@ -62,12 +63,12 @@ export function ConsolePanel({ stage, onClose }: { stage: PipelineStage | null; 
                 ref={closeRef}
                 type="button"
                 onClick={onClose}
-                className="rounded-md border border-line-strong px-2 py-1 font-mono text-[0.7rem] text-muted transition-[color,border-color,transform] hover:border-cyan/50 hover:text-cyan active:scale-95"
+                className="shrink-0 rounded-md border border-line-strong px-2 py-1 font-mono text-[0.7rem] whitespace-nowrap text-muted transition-[color,border-color,transform] hover:border-cyan/50 hover:text-cyan active:scale-95"
               >
                 close <span aria-hidden="true">esc</span>
               </button>
             </div>
-            <pre className="overflow-auto px-4 py-4 font-mono text-[0.78rem] leading-6 whitespace-pre-wrap text-muted">
+            <pre tabIndex={0} aria-label="Console log" className="overflow-auto overscroll-contain px-4 py-4 font-mono text-[0.78rem] leading-6 whitespace-pre-wrap text-muted">
               {consoleLines(stage).map((line, i) => (
                 <span key={i} className={line.startsWith("[Pipeline]") ? "block text-faint" : line.startsWith("+") ? "block text-fg" : "block"}>
                   {line}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { site } from "@/content/site";
 import { cn } from "@/lib/cn";
 import { loadProgress, sceneStore } from "@/lib/sceneStore";
@@ -56,17 +56,33 @@ export function BootSequence() {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, skip]);
 
+  // Modal while it runs: focus moves into the dialog (Tab → Skip) and the page behind is inert.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const modal = active && !leaving;
+  useEffect(() => {
+    if (!modal) return;
+    const overlay = dialogRef.current;
+    const behind = [...document.body.children].filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && el !== overlay && el.tagName !== "SCRIPT" && !el.inert,
+    );
+    behind.forEach((el) => (el.inert = true));
+    overlay?.focus({ preventScroll: true });
+    return () => behind.forEach((el) => (el.inert = false));
+  }, [modal]);
+
   if (gone || (gate !== "ssr" && gate !== "run")) return null;
 
   return (
     <div
       id="boot-overlay"
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Booting portfolio"
       className={cn(
         // Hidden unless the pre-paint gate chose to run the intro (no JS → never shown)
-        "fixed inset-0 z-[60] hidden items-center justify-center bg-bg px-4 ease-premium [html[data-boot=run]_&]:flex",
+        "fixed inset-0 z-[60] hidden items-center outline-none justify-center bg-bg px-4 ease-premium [html[data-boot=run]_&]:flex",
         "transition-[opacity,transform,filter]",
         leaving && "pointer-events-none scale-[1.015] opacity-0 blur-sm",
       )}

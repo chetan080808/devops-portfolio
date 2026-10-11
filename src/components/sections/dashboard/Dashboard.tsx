@@ -4,7 +4,7 @@ import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { DashboardScroll } from "./DashboardScroll";
-import { GaugePanel, ListPanel, SparklinePanel, StatPanel, TextPanel } from "./panels";
+import { GaugePanel, ListPanel, SparklinePanel, StatPanel, TagsPanel, TextPanel } from "./panels";
 
 function Panel({ panel }: { panel: DashboardPanel }) {
   switch (panel.kind) {
@@ -18,6 +18,8 @@ function Panel({ panel }: { panel: DashboardPanel }) {
       return <TextPanel panel={panel} />;
     case "list":
       return <ListPanel panel={panel} />;
+    case "tags":
+      return <TagsPanel panel={panel} />;
   }
 }
 
@@ -34,7 +36,7 @@ export function Dashboard() {
           skills / overview
         </p>
         <p className="flex gap-4 text-faint">
-          <span>last 12 months</span>
+          <span>range: all time</span>
           <span className="hidden sm:inline">refresh 30s</span>
         </p>
       </div>

@@ -26,7 +26,7 @@ export function buildStages(): PipelineStage[] {
   site.experience.forEach((m, slot) => {
     const final = m.current ? "running" : "passed";
     out.push({ id: m.id, label: title(m.stage), milestone: m, final, slot });
-    if (m.id === parallel.alongside && site.projects.length > 0) {
+    if (m.id === parallel.alongside && parallel.jobs.length > 0) {
       out.push({ id: `parallel-${parallel.label}`, label: parallel.label, milestone: null, parallelTo: m.id, final, slot });
     }
   });
@@ -38,7 +38,7 @@ export const jobRunning = () => site.experience.some((m) => m.current);
 
 /** Console output lines for a stage — only real content from site.ts. */
 export function consoleLines(stage: PipelineStage): string[] {
-  const { profile, projects, pipeline } = site;
+  const { profile, pipeline } = site;
   const lines = [`Started by user ${profile.handle}`, `[Pipeline] Start of Pipeline (${pipeline.job} » ${pipeline.branch})`];
   if (stage.milestone) {
     const m = stage.milestone;
@@ -47,7 +47,7 @@ export function consoleLines(stage: PipelineStage): string[] {
     lines.push(`[Pipeline] }`);
   } else {
     lines.push(`[Pipeline] parallel`, `[Pipeline] { (Branch: ${stage.label})`);
-    for (const p of projects) lines.push(`[${stage.label}] + deploy ${p.id}`, `[${stage.label}] ${p.name}: ${p.status}`);
+    for (const job of pipeline.parallel.jobs) lines.push(`[${stage.label}] + build "${job}"`);
     lines.push(`[Pipeline] }`);
   }
   return lines;

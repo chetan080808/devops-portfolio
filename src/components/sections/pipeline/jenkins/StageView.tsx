@@ -3,6 +3,9 @@
 import { useRef, useSyncExternalStore } from "react";
 import { site } from "@/content/site";
 import { cn } from "@/lib/cn";
+import { durationSince } from "@/lib/duration";
+import { SHOW_TODOS } from "@/lib/todo";
+import type { Milestone } from "@/types/content";
 import type { PipelineStage } from "./model";
 import { useRunSync } from "./useRunSync";
 
@@ -10,6 +13,31 @@ import { useRunSync } from "./useRunSync";
 const noopSubscribe = () => () => {};
 const today = () => new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 const useToday = () => useSyncExternalStore(noopSubscribe, today, () => "");
+
+/** A stage's duration: fixed in site.ts, or (current role) from its `since` month to today, client only. */
+function useDuration(m: Milestone | null) {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => (m?.since ? durationSince(m.since, new Date()) : m?.duration) ?? null,
+    () => m?.duration ?? null,
+  );
+}
+
+/** Dev-only tooltip on stages whose duration is still missing in site.ts. */
+const todoTitle = (duration: string | null) => (duration || !SHOW_TODOS ? undefined : "Duration: TODO in site.ts");
+
+function DurationCell({ stage }: { stage: PipelineStage }) {
+  const duration = useDuration(stage.milestone);
+  return (
+    <td className="text-center text-muted" title={todoTitle(duration)}>
+      {duration ?? "—"}
+    </td>
+  );
+}
+
+function PassedDuration({ stage }: { stage: PipelineStage }) {
+  return <>{useDuration(stage.milestone) ?? "—"}</>;
+}
 
 /**
  * Classic Jenkins Stage View (desktop only): stage headers, an "Average stage times" row, then the
@@ -42,9 +70,7 @@ export function StageView({ stages, onOpen }: { stages: PipelineStage[]; onOpen:
               Average stage times:
             </th>
             {stages.map((s) => (
-              <td key={s.id} className="text-center text-muted" title={s.milestone?.duration ? undefined : "Duration: TODO in site.ts"}>
-                {s.milestone?.duration ?? "—"}
-              </td>
+              <DurationCell key={s.id} stage={s} />
             ))}
           </tr>
           <tr>
@@ -66,8 +92,9 @@ export function StageView({ stages, onOpen }: { stages: PipelineStage[]; onOpen:
                   data-slot={s.slot}
                   data-stripes
                   onClick={() => onOpen(s)}
+                  // Same consoles as the graph nodes above: one tab stop per stage is enough.
+                  tabIndex={-1}
                   aria-label={`${s.label}: open console output`}
-                  title={s.milestone?.duration ? undefined : "Duration: TODO in site.ts"}
                   className={cn(
                     // data-* (not group-data-*): this element itself carries data-status.
                     "h-11 w-full rounded-md border transition-transform duration-150 hover:ring-2 hover:ring-cyan/50 focus-visible:ring-2 focus-visible:ring-cyan active:scale-[0.97] motion-reduce:transform-none",
@@ -78,7 +105,9 @@ export function StageView({ stages, onOpen }: { stages: PipelineStage[]; onOpen:
                     "data-[status=running]:border-[#4a90e2]/50 data-[status=running]:bg-[repeating-linear-gradient(45deg,rgb(74_144_226/0.24)_0_10px,rgb(74_144_226/0.1)_10px_20px)] data-[status=running]:text-[#93c5fd]",
                   )}
                 >
-                  <span className="hidden [[data-status=passed]>&]:inline">{s.milestone?.duration ?? "—"}</span>
+                  <span className="hidden [[data-status=passed]>&]:inline">
+                    <PassedDuration stage={s} />
+                  </span>
                   <span className="hidden [[data-status=running]>&]:inline">in progress</span>
                   <span className="hidden [[data-status=queued]>&]:inline">queued</span>
                 </button>

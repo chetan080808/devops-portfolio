@@ -14,7 +14,7 @@ export function Footer() {
   return (
     <footer className="relative border-t border-line px-4 pt-12 pb-10 sm:px-6">
       <div className="mx-auto max-w-6xl">
-        <p className="label-mono mb-5">behind the scenes</p>
+        <h2 className="label-mono mb-5">behind the scenes</h2>
         <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-4">
           {stats.map((s) => (
             <div key={s.label} className="bg-bg px-4 py-4">
@@ -32,7 +32,7 @@ export function Footer() {
             © {profile.name} · built with Next.js, R3F &amp; GSAP · shipped via GitHub Actions → Kubernetes
           </p>
           <a href={meta.repoUrl} target="_blank" rel="noreferrer" className="text-muted transition-colors hover:text-cyan">
-            view source ↗
+            view source<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span>
           </a>
         </div>
       </div>

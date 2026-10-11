@@ -20,6 +20,7 @@ import {
   WHALE_SWIM,
 } from "./choreography";
 import { MINI_SCALE, attachMinis, miniRegistry } from "./minis";
+import { markWhale } from "../whaleSilhouette";
 import { whaleTrack } from "./tracking";
 import { WhaleController } from "./whaleController";
 import { scrollStory } from "@/lib/scrollStory";
@@ -68,7 +69,12 @@ export function Whale() {
     b.max.y += MINI_TOP;
     return b;
   }, [whale]);
-  const minis = useMemo(() => attachMinis(whale, containerScene, site.projects.length), [whale, containerScene]);
+  const minis = useMemo(() => {
+    const attached = attachMinis(whale, containerScene, site.projects.length);
+    // Whale + minis on their own layer too, for the scroll-out silhouette (whaleSilhouette.ts).
+    markWhale(whale);
+    return attached;
+  }, [whale, containerScene]);
   useEffect(() => {
     miniRegistry.attached = minis.map((m) => m.object);
     return () => void (miniRegistry.attached = []);

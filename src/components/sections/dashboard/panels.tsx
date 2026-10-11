@@ -7,14 +7,15 @@ type PanelOf<K extends DashboardPanel["kind"]> = Extract<DashboardPanel, { kind:
 
 const wideClass = (wide?: boolean) => (wide ? "sm:col-span-2" : undefined);
 
-function formatValue(value: number, decimals = 0, suffix = "") {
-  return `${value.toFixed(decimals)}${suffix}`;
+function formatValue(value: number, decimals = 0, suffix = "", prefix = "") {
+  return `${prefix}${value.toFixed(decimals)}${suffix}`;
 }
 
 /** Big metric number, or Grafana-style "No data" when the value isn't filled in yet. */
-function BigValue({ value, decimals, suffix, accent }: {
+function BigValue({ value, decimals, prefix, suffix, accent }: {
   value: number | null;
   decimals?: number;
+  prefix?: string;
   suffix?: string;
   accent: Accent;
 }) {
@@ -27,10 +28,11 @@ function BigValue({ value, decimals, suffix, accent }: {
       data-countup
       data-value={value}
       data-decimals={decimals ?? 0}
+      data-prefix={prefix ?? ""}
       data-suffix={suffix ?? ""}
       className={cn("font-mono text-4xl font-medium tracking-tight", accentText[accent])}
     >
-      {formatValue(value, decimals, suffix)}
+      {formatValue(value, decimals, suffix, prefix)}
     </p>
   );
 }
@@ -39,7 +41,7 @@ export function StatPanel({ panel }: { panel: PanelOf<"stat"> }) {
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <div className="flex flex-1 flex-col justify-between gap-4">
-        <BigValue value={panel.value} decimals={panel.decimals} suffix={panel.suffix} accent={panel.accent} />
+        <BigValue value={panel.value} decimals={panel.decimals} prefix={panel.prefix} suffix={panel.suffix} accent={panel.accent} />
         <p className="font-mono text-[0.7rem] text-muted">{panel.caption}</p>
       </div>
     </PanelFrame>
@@ -82,7 +84,7 @@ export function SparklinePanel({ panel }: { panel: PanelOf<"sparkline"> }) {
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <div className="flex items-end justify-between gap-4">
-        <BigValue value={panel.value} decimals={panel.decimals} suffix={panel.suffix} accent={panel.accent} />
+        <BigValue value={panel.value} decimals={panel.decimals} prefix={panel.prefix} suffix={panel.suffix} accent={panel.accent} />
         <p className="pb-1 text-right font-mono text-[0.7rem] text-muted">{panel.caption}</p>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-4 h-20 w-full" aria-hidden="true">
@@ -180,6 +182,26 @@ export function ListPanel({ panel }: { panel: PanelOf<"list"> }) {
           </li>
         ))}
       </ul>
+    </PanelFrame>
+  );
+}
+
+export function TagsPanel({ panel }: { panel: PanelOf<"tags"> }) {
+  return (
+    <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
+      <ul className="flex flex-wrap gap-1.5">
+        {panel.items.map((item) => (
+          <li
+            key={item}
+            data-list-item
+            className="flex items-center gap-1.5 rounded-md border border-line-strong bg-white/[0.02] px-2 py-1 font-mono text-[0.7rem] text-fg"
+          >
+            <span className="size-1 rounded-full" style={{ backgroundColor: accentHex[panel.accent] }} aria-hidden="true" />
+            {item}
+          </li>
+        ))}
+      </ul>
+      {panel.caption && <p className="mt-4 font-mono text-[0.7rem] text-muted">{panel.caption}</p>}
     </PanelFrame>
   );
 }

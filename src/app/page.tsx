@@ -8,20 +8,21 @@ import { Dashboard } from "@/components/sections/dashboard/Dashboard";
 import { ContactTerminal } from "@/components/sections/contact/ContactTerminal";
 import { Footer } from "@/components/sections/footer/Footer";
 import { ChaosLog } from "@/components/easter-eggs/ChaosMonkey";
+import { PersonJsonLd } from "@/components/layout/PersonJsonLd";
 
 export default function Home() {
   return (
     <>
       <BootSequence />
       <a
-        href="#deployments"
+        href="#main"
         className="sr-only z-50 rounded bg-cyan px-3 py-2 text-bg focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
       >
         Skip to content
       </a>
       <GridBackground />
       <Navbar />
-      <main>
+      <main id="main" tabIndex={-1} className="outline-none">
         <Hero />
         <Deployments />
         <Pipeline />
@@ -30,6 +31,7 @@ export default function Home() {
       </main>
       <Footer />
       <ChaosLog />
+      <PersonJsonLd />
     </>
   );
 }

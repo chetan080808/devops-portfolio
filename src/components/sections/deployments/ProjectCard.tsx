@@ -2,9 +2,17 @@ import type { Project } from "@/types/content";
 import { Badge } from "@/components/ui/Badge";
 import { Chip } from "@/components/ui/Chip";
 import { cn } from "@/lib/cn";
+import { statusAccent } from "@/lib/accent";
 import { MiniSlot } from "./MiniSlot";
 
 const MAX_CHIPS = 5;
+
+/** Kubernetes-style readout: a finished project is a completed Job, not a running Deployment. */
+const READY: Record<Project["status"], string> = {
+  Running: "replicas 1/1",
+  Completed: "completions 1/1",
+  Pending: "replicas 0/1",
+};
 
 export function ProjectCard({ project, index, onInspect }: {
   project: Project;
@@ -41,7 +49,7 @@ export function ProjectCard({ project, index, onInspect }: {
           <Badge accent="warning">Pending</Badge>
         </span>
         <span className="group-data-[landed=false]/card:hidden">
-          <Badge accent={project.status === "Running" ? "success" : "warning"}>{project.status}</Badge>
+          <Badge accent={statusAccent[project.status]}>{project.status}</Badge>
         </span>
       </div>
 
@@ -64,11 +72,12 @@ export function ProjectCard({ project, index, onInspect }: {
       </ul>
 
       <div className="mt-6 flex items-center justify-between border-t border-line pt-4 font-mono text-[0.7rem]">
-        <span className="text-faint">replicas 1/1</span>
+        <span className="text-faint">{READY[project.status]}</span>
         <button
           type="button"
           onClick={() => onInspect(project)}
           aria-haspopup="dialog"
+          aria-label={`docker inspect ${project.name}`}
           className="rounded text-cyan transition-colors group-hover:text-fg after:absolute after:inset-0 focus-visible:outline-offset-2"
         >
           docker inspect{" "}

@@ -20,7 +20,10 @@ export interface Profile {
   location: string;
   email: string;
   resumeUrl: string;
-  available: boolean;
+  /** File name the resume downloads as (the URL stays resumeUrl) */
+  resumeFileName: string;
+  /** Availability line (contact section + `contact` command); null hides it */
+  status: string | null;
   bio: string[];
 }
 
@@ -54,6 +57,8 @@ export interface Milestone {
   current?: boolean;
   /** Real duration shown in the Jenkins Stage View, e.g. "4y" or "8mo"; null renders "—" */
   duration: string | null;
+  /** "YYYY-MM": the duration is computed from this month to today when the page loads (current role) */
+  since?: string;
 }
 
 /**
@@ -73,6 +78,8 @@ export type DashboardPanel =
   | (PanelBase & {
       kind: "stat";
       value: Metric;
+      /** e.g. "~" for an approximate value */
+      prefix?: string;
       suffix?: string;
       decimals?: number;
       caption: string;
@@ -81,6 +88,7 @@ export type DashboardPanel =
   | (PanelBase & {
       kind: "sparkline";
       value: Metric;
+      prefix?: string;
       suffix?: string;
       decimals?: number;
       caption: string;
@@ -105,6 +113,13 @@ export type DashboardPanel =
   | (PanelBase & {
       kind: "list";
       items: { label: string; detail: string; accent: Accent }[];
+    })
+  | (PanelBase & {
+      /** Plain set of names (services, tools) rendered as chips */
+      kind: "tags";
+      items: string[];
+      caption?: string;
+      accent: Accent;
     });
 
 export interface SiteContent {
@@ -139,8 +154,8 @@ export interface SiteContent {
   pipeline: {
     job: string;
     branch: string;
-    /** Parallel branch running alongside one stage; its jobs are the projects in `projects` */
-    parallel: { label: string; alongside: string };
+    /** Parallel branch running alongside one stage, with its own job names */
+    parallel: { label: string; alongside: string; jobs: string[] };
   };
   dashboard: DashboardPanel[];
   socials: SocialLink[];

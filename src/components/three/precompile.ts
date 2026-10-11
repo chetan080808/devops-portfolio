@@ -12,6 +12,8 @@ import { Mesh, OrthographicCamera, PlaneGeometry, Scene, type Camera, type Mater
 export const postMaterials = new Set<Material>();
 /** Extra scenes rendered by hand (e.g. the minis' overlay scene). */
 export const extraScenes = new Set<Scene>();
+/** Override materials drawn on one layer of the scene (e.g. the whale silhouette pass). */
+export const layerOverrides = new Set<{ material: Material; layer: number }>();
 
 const isMaterial = (v: unknown): v is Material => !!v && typeof v === "object" && (v as Material).isMaterial === true;
 
@@ -54,6 +56,25 @@ async function compileEach(gl: WebGLRenderer, root: Object3D, camera: Camera, is
 export async function precompile(gl: WebGLRenderer, scene: Scene, camera: Camera, isCancelled: () => boolean) {
   await compileEach(gl, scene, camera, isCancelled);
   for (const extra of extraScenes) await compileEach(gl, extra, camera, isCancelled);
+
+  // Override passes: compile the override against each object on its layer (skinned or not).
+  for (const { material, layer } of layerOverrides) {
+    const targets: Mesh[] = [];
+    scene.traverse((o) => {
+      if ((o as Mesh).isMesh && o.layers.isEnabled(layer)) targets.push(o as Mesh);
+    });
+    for (const mesh of targets) {
+      if (isCancelled()) return;
+      const own = mesh.material;
+      mesh.material = material;
+      try {
+        await gl.compileAsync(mesh, camera, scene);
+      } finally {
+        mesh.material = own;
+      }
+      await maybeYield();
+    }
+  }
 
   // Post passes draw a fullscreen triangle with their own material: compile each on a stand-in quad.
   const quadScene = new Scene();
