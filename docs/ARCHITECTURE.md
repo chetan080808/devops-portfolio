@@ -17,7 +17,7 @@ flowchart LR
   user((Visitor)) -->|HTTPS| ing
 ```
 
-Status: **7a done** (container image). Cluster, pipeline and DNS boxes are the plan for 7b–7e.
+Status: **7a + 7b done** (container image; AWS server running k3s). Pipeline, app deploy and DNS are the plan for 7c–7e.
 
 ## 1. Container image (7a)
 
@@ -53,4 +53,71 @@ Status: **7a done** (container image). Cluster, pipeline and DNS boxes are the p
 docker build -t devops-portfolio:local --build-arg GIT_SHA=$(git rev-parse --short HEAD) .
 docker run --rm -p 3200:3000 devops-portfolio:local
 curl localhost:3200/api/healthz
+```
+
+## 2. Infrastructure on AWS (7b)
+
+**What:** one EC2 server in Mumbai (`ap-south-1`) running k3s, a small but complete Kubernetes.
+Everything is created by Terraform in `infra/terraform/`, in two stacks:
+
+| Stack | Creates | Why separate |
+| --- | --- | --- |
+| `bootstrap` | S3 bucket for Terraform state; monthly cost budget with email alerts | The state bucket must exist before any other stack can store its state in it. Applied once. |
+| `main` | VPC, subnet, internet gateway, security group, IAM role, EC2 instance, Elastic IP | The actual server. Changed whenever the infrastructure changes. |
+
+**Terraform state:** kept in a private, encrypted, versioned S3 bucket (HTTPS only). Locking uses
+S3's own lock file (`use_lockfile`), so no DynamoDB table is needed. Old state versions are kept
+for 90 days, so a bad apply can be rolled back. The bucket name sits in a gitignored
+`backend.hcl`: `terraform init -backend-config=backend.hcl`.
+
+**Network:** own VPC `10.42.0.0/16` with one public subnet in one zone. There is a single server,
+so more zones would only add cost. No NAT gateway, no VPC endpoints (both bill by the hour); the
+server reaches the internet through the internet gateway.
+
+**Security**
+
+- **Inbound:** only 80 and 443. No SSH port, no Kubernetes API (6443) from the internet.
+- **Outbound:** only 80 and 443 (package mirrors, image registries, AWS APIs).
+- **Admin access:** AWS Systems Manager Session Manager. The server's only AWS permission is
+  `AmazonSSMManagedInstanceCore`; a shell is `aws ssm start-session --target <instance-id>`,
+  authenticated with AWS SSO and logged by AWS. No SSH keys exist.
+- **Instance metadata:** IMDSv2 only, hop limit 1, so pods can't read the server's credentials.
+- **Disk:** encrypted gp3, 20 GB. **Kubernetes secrets:** encrypted at rest (`--secrets-encryption`).
+
+**k3s:** installed on first boot by `user-data.sh.tftpl`, pinned to `v1.36.5+k3s1` (both the
+installer script and the binary). It ships Traefik (Ingress controller, listening on 80/443 through
+k3s's ServiceLB) and metrics-server (feeds the HorizontalPodAutoscaler in 7c). Pods use
+`10.52.0.0/16`, services `10.43.0.0/16`. Any change to the boot script rebuilds the server
+(`user_data_replace_on_change`), because the script only runs once.
+
+> **Lesson learned:** the first apply used the k3s default pod network `10.42.0.0/16`, the same
+> range as the VPC. The node's own address was inside the pod network, and health checks to pods
+> timed out. Fix: set `--cluster-cidr 10.52.0.0/16` and rebuild the server (1 replaced, Elastic IP
+> kept). Always check that pod, service and VPC ranges don't overlap.
+
+**Cost guardrail:** an AWS Budget of $28/month (before tax) emails at 90% actual, 100% actual and
+100% forecast spend.
+
+**Estimated cost (ap-south-1, on-demand, before tax)**
+
+| Item | Per month |
+| --- | --- |
+| EC2 t3.small (CPU credits "standard": no surprise charges) | $16.35 |
+| gp3 disk, 20 GB | $1.82 |
+| Public IPv4 (Elastic IP) | $3.65 |
+| State bucket, budget, SSM, VPC, IAM, first 100 GB out | ~$0 |
+| **Total** | **≈ $21.82** |
+
+**Measured after apply (2026-10-12):** node `Ready` about 2 minutes after boot; all system pods
+running; idle memory 1.1 of 1.9 GiB used; from the internet, 80/443 answer (Traefik 404, nothing
+deployed yet) and 22/6443/10250 are filtered.
+
+**Try it**
+
+```bash
+cd infra/terraform/main
+terraform init -backend-config=backend.hcl
+terraform plan
+aws ssm start-session --target "$(terraform output -raw instance_id)"
+sudo k3s kubectl get nodes,pods -A
 ```
