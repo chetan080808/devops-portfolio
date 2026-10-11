@@ -1,0 +1,27 @@
+#!/bin/bash
+# First-boot setup: single-node k3s. Output goes to /var/log/k3s-bootstrap.log.
+set -euo pipefail
+exec > >(tee -a /var/log/k3s-bootstrap.log) 2>&1
+
+K3S_VERSION="${k3s_version}"
+K3S_TAG="$${K3S_VERSION/+/%2B}" # "+" must be URL-encoded in the GitHub path
+echo "[bootstrap] $(date -Is) installing k3s $K3S_VERSION"
+
+dnf -y update --security
+
+# Installer pinned to the same release tag as the binary it installs.
+curl -sfL "https://raw.githubusercontent.com/k3s-io/k3s/$K3S_TAG/install.sh" -o /tmp/k3s-install.sh
+
+# AL2023 runs SELinux permissive and has no k3s-selinux RPM, so skip it. Traefik (Ingress) and
+# ServiceLB (binds 80/443 on the host) stay enabled; metrics-server feeds the HPA.
+INSTALL_K3S_VERSION="$K3S_VERSION" \
+INSTALL_K3S_SKIP_SELINUX_RPM=true \
+  sh /tmp/k3s-install.sh server \
+    --write-kubeconfig-mode 0600 \
+    --secrets-encryption \
+    --cluster-cidr "${pod_cidr}" \
+    --node-name portfolio-node-1
+
+until /usr/local/bin/k3s kubectl get nodes 2>/dev/null | grep -q " Ready"; do sleep 3; done
+echo "[bootstrap] $(date -Is) k3s ready"
+/usr/local/bin/k3s kubectl get nodes -o wide

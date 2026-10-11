@@ -1,0 +1,2 @@
+# Copy to backend.hcl (gitignored); bucket = the bootstrap stack's state_bucket output.
+bucket = "devops-portfolio-tfstate-<account-id>"

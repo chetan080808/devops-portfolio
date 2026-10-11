@@ -27,3 +27,12 @@ blender/source/
 *.pem
 npm-debug.log*
 .vercel
+
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+backend.hcl
+crash.log

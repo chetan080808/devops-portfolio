@@ -1,0 +1,6 @@
+# Scripts and Terraform must keep LF: CRLF breaks bash on the server and changes the
+# EC2 user data (which forces a rebuild).
+*.sh    text eol=lf
+*.tftpl text eol=lf
+*.tf    text eol=lf
+*.hcl   text eol=lf
