@@ -224,3 +224,26 @@ stopped, no downtime.
 
 **Try it:** push to `main` (or Actions → ci-cd → Run workflow), then
 `curl -s https://chetannamane.com | grep -o 'dpl=[0-9a-f]*' | sort -u`.
+
+## 5. "Behind the scenes" footer: real data (7e)
+
+The footer shows only values that exist somewhere real; anything unknown says "local build" or
+"—".
+
+| Shown | Source | When it's set |
+| --- | --- | --- |
+| pipeline (passed · run #) | `CI_RUN_ID` / `CI_RUN_NUMBER` build args; links to the run | image build (CI) |
+| commit | `GIT_SHA` build arg; links to the commit | image build |
+| image | `DEPLOY_IMAGE`, filled in by `k8s-apply.sh` with the deployed tag | deploy |
+| deployed | `DEPLOYED_AT`, filled in by `k8s-apply.sh` (UTC) | deploy |
+| served by | `POD_NAME` from the Kubernetes downward API (`metadata.name`) | pod start |
+
+"Passed" is true by construction: only images that passed lint, build and the Trivy scan are ever
+pushed. Build values are rendered into the static HTML; the pod values come from
+`/api/build-info` (per request, `Cache-Control: no-store`), fetched when the footer scrolls into
+view, so reloading can show a different pod.
+
+**Measured (2026-10-14, run #5):** 4 requests to `/api/build-info` alternated between the two pods;
+deploy time 2 minutes after the build time. Lighthouse on the live site (headless, this laptop):
+desktop Perf 65–66, A11y/BP/SEO 100 (LCP 1.1–1.2 s, CLS 0.009, TBT 1.35–1.44 s, mostly 3D start-up);
+mobile Perf 75–81, A11y/BP/SEO 100.

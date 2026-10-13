@@ -46,6 +46,7 @@ Updated after every checkpoint.
 | [D-35](#d-35-measure-frame-rate-with-a-scripted-browser) | Measure frame rate with a scripted browser | 7c |
 | [D-36](#d-36-keyless-deploys-oidc-role-scoped-to-the-production-environment) | Keyless deploys: OIDC role scoped to the production environment | 7d |
 | [D-37](#d-37-pipeline-shape-scan-the-image-you-push) | Pipeline shape: scan the image you push | 7d |
+| [D-38](#d-38-footer-data-from-the-build-the-deploy-and-the-pod) | Footer data from the build, the deploy and the pod | 7e |
 
 ---
 
@@ -403,3 +404,14 @@ Updated after every checkpoint.
   (`LayoutProps`) into `.next/types`, which a fresh checkout doesn't have. Fixed with
   `next typegen` before the type-check.
 - **Measured:** push to live in ~3.5 min (lint 37 s, build + scan + push 118 s, deploy 37 s).
+
+### D-38 Footer data from the build, the deploy and the pod
+
+- **Context:** the footer showed placeholders ("passing", "3/3 pods", "v0.1.0"), against D-02.
+- **Choice:** build values (run, commit) as Docker build args rendered into the static HTML;
+  deploy values (image, deploy time) set by `k8s-apply.sh` as env vars; the serving pod from the
+  downward API, read per request through `/api/build-info`. No pod count: it would need
+  Kubernetes API access from the app, which the pods deliberately don't have (D-31).
+- **Why:** each value comes from the one place that knows it; the page stays static; unknown
+  values say so. Stamping the deploy time also rolls the pods on every deploy, which is the
+  behaviour we want anyway.
