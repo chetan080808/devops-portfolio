@@ -47,6 +47,7 @@ Updated after every checkpoint.
 | [D-36](#d-36-keyless-deploys-oidc-role-scoped-to-the-production-environment) | Keyless deploys: OIDC role scoped to the production environment | 7d |
 | [D-37](#d-37-pipeline-shape-scan-the-image-you-push) | Pipeline shape: scan the image you push | 7d |
 | [D-38](#d-38-footer-data-from-the-build-the-deploy-and-the-pod) | Footer data from the build, the deploy and the pod | 7e |
+| [D-39](#d-39-protect-main-without-required-status-checks) | Protect main without required status checks | 7e |
 
 ---
 
@@ -415,3 +416,14 @@ Updated after every checkpoint.
 - **Why:** each value comes from the one place that knows it; the page stays static; unknown
   values say so. Stamping the deploy time also rolls the pods on every deploy, which is the
   behaviour we want anyway.
+
+### D-39 Protect main without required status checks
+
+- **Choice:** GitHub ruleset `protect-main` on the default branch: **restrict deletions** and
+  **block force pushes**. Status checks are **not** required on `main`.
+- **Why:** commits go straight to `main` (one maintainer, no pull-request flow); required checks
+  would reject every direct push. The pipeline already blocks bad releases: if `lint` or `build`
+  (including the Trivy scan) fails, nothing is pushed or deployed, and the live site keeps the
+  previous release. Blocking force pushes protects the rewritten public history.
+- **Revisit when:** someone else contributes, or work moves to pull requests; then require `lint`
+  and `build` and a pull request before merging.
