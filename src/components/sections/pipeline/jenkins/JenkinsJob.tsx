@@ -31,10 +31,12 @@ export function JenkinsJob() {
   useRunSync(ref);
 
   // Classic Stage View "in progress" stripes, animated (WAAPI: no extra CSS keyframes needed).
+  // Transform, not background-position: a looping background-position repaints every frame.
+  // Hidden layers (cells that aren't running) cost nothing.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const anims = Array.from(ref.current?.querySelectorAll<HTMLElement>("[data-stripes]") ?? []).map((el) =>
-      el.animate([{ backgroundPosition: "0 0" }, { backgroundPosition: "28.28px 0" }], { duration: 900, iterations: Infinity }),
+      el.animate([{ transform: "translateX(0)" }, { transform: "translateX(28.28px)" }], { duration: 900, iterations: Infinity }),
     );
     return () => anims.forEach((a) => a.cancel());
   }, []);

@@ -12,10 +12,12 @@ export function StatusDot({ accent = "success", pulse = true, className }: {
     <span
       aria-hidden="true"
       className={cn(
-        "inline-block size-2 shrink-0 rounded-full",
+        "relative inline-block size-2 shrink-0 rounded-full",
         accentBg[accent],
         accentText[accent],
-        pulse && "animate-pulse-dot",
+        // Halo = a ::after ring scaled + faded (compositor-only); a box-shadow pulse repainted.
+        pulse &&
+          "animate-pulse-dot after:absolute after:inset-0 after:animate-pulse-ring after:rounded-full after:bg-current after:content-['']",
         className,
       )}
     />

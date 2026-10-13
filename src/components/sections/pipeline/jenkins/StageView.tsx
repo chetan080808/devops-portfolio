@@ -90,26 +90,31 @@ export function StageView({ stages, onOpen }: { stages: PipelineStage[]; onOpen:
                   data-status={s.final}
                   data-final={s.final}
                   data-slot={s.slot}
-                  data-stripes
                   onClick={() => onOpen(s)}
                   // Same consoles as the graph nodes above: one tab stop per stage is enough.
                   tabIndex={-1}
                   aria-label={`${s.label}: open console output`}
                   className={cn(
                     // data-* (not group-data-*): this element itself carries data-status.
-                    "h-11 w-full rounded-md border transition-transform duration-150 hover:ring-2 hover:ring-cyan/50 focus-visible:ring-2 focus-visible:ring-cyan active:scale-[0.97] motion-reduce:transform-none",
+                    "relative h-11 w-full overflow-hidden rounded-md border transition-transform duration-150 hover:ring-2 hover:ring-cyan/50 focus-visible:ring-2 focus-visible:ring-cyan active:scale-[0.97] motion-reduce:transform-none",
                     // Jenkins conventions, dark-theme versions in the site palette.
                     "data-[status=queued]:border-line-strong data-[status=queued]:bg-white/[0.04] data-[status=queued]:text-muted",
                     "data-[status=passed]:border-success/35 data-[status=passed]:bg-success/[0.14] data-[status=passed]:text-[#86efac]",
-                    // Classic "in progress" stripes; JenkinsJob animates background-position (WAAPI).
-                    "data-[status=running]:border-[#4a90e2]/50 data-[status=running]:bg-[repeating-linear-gradient(45deg,rgb(74_144_226/0.24)_0_10px,rgb(74_144_226/0.1)_10px_20px)] data-[status=running]:text-[#93c5fd]",
+                    "data-[status=running]:border-[#4a90e2]/50 data-[status=running]:text-[#93c5fd]",
                   )}
                 >
-                  <span className="hidden [[data-status=passed]>&]:inline">
+                  {/* Classic "in progress" stripes on their own layer, one stripe period (28.28px)
+                      wider than the cell: JenkinsJob slides it by transform (compositor-only). */}
+                  <span
+                    data-stripes
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-0 right-0 -left-[28.28px] hidden bg-[repeating-linear-gradient(45deg,rgb(74_144_226/0.24)_0_10px,rgb(74_144_226/0.1)_10px_20px)] [[data-status=running]>&]:block"
+                  />
+                  <span className="relative hidden [[data-status=passed]>&]:inline">
                     <PassedDuration stage={s} />
                   </span>
-                  <span className="hidden [[data-status=running]>&]:inline">in progress</span>
-                  <span className="hidden [[data-status=queued]>&]:inline">queued</span>
+                  <span className="relative hidden [[data-status=running]>&]:inline">in progress</span>
+                  <span className="relative hidden [[data-status=queued]>&]:inline">queued</span>
                 </button>
               </td>
             ))}
