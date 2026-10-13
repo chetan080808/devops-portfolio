@@ -17,7 +17,7 @@ flowchart LR
   user((Visitor)) -->|HTTPS| ing
 ```
 
-Status: **7a–7c done**: live at https://chetannamane.com (image built in GitHub Actions, k3s on EC2, Let's Encrypt). The full CI/CD pipeline (lint → Trivy → deploy) and real footer data are the plan for 7d–7e.
+Status: **7a–7d done**: live at https://chetannamane.com, deployed by the CI/CD pipeline on every push to main (lint → build → Trivy → push → deploy via OIDC + SSM → smoke test). Real footer data is 7e.
 
 ## 1. Container image (7a)
 
@@ -183,3 +183,44 @@ against the live cluster without changing anything.
 scripts/k8s-apply.sh deploy/k8s/app "$(git rev-parse HEAD)"   # after the image workflow passed
 curl -I https://chetannamane.com
 ```
+
+## 4. CI/CD and keyless deploys (7d)
+
+**What:** `.github/workflows/ci-cd.yml` takes every push to `main` from source to the live site:
+
+| Job | Does | Fails when |
+| --- | --- | --- |
+| `lint` | `npm ci`, `next typegen`, `tsc --noEmit`, `eslint` | a type or lint error |
+| `build` | builds the image into the runner's Docker, scans it with Trivy, then pushes **that same image** as `ghcr.io/chetan080808/devops-portfolio:<commit SHA>` | Trivy finds a HIGH/CRITICAL vulnerability that has a fix |
+| `deploy` | in the GitHub environment `production`: gets AWS credentials through OIDC, runs `scripts/k8s-apply.sh` (manifests applied on the node through SSM, waits for the rollout), then a smoke test | the role can't be assumed, the rollout doesn't finish in 7 min, or the site doesn't serve the new build |
+
+Pull requests run `lint` and `build` (with the scan) only: nothing is pushed or deployed.
+
+**Keyless AWS access (OIDC):** GitHub signs a short-lived token for the deploy job; AWS STS
+checks it against the IAM OIDC provider for `token.actions.githubusercontent.com` and returns
+1-hour credentials for the role `devops-portfolio-github-deploy`. No AWS keys exist in GitHub. The
+role trusts exactly one subject:
+
+```
+repo:chetan080808@203205241/devops-portfolio@1408806533:environment:production
+```
+
+The numbers are GitHub's immutable account and repository IDs, so a deleted and re-created account
+or repository with the same name could not use the role. The `production` environment only
+accepts the `main` branch. The role can only run commands on the k3s node (`ssm:SendCommand` with
+`AWS-RunShellScript`), read their results and look up the node.
+
+**Supply chain:** every third-party action is pinned to a full commit SHA, choosing releases at
+least two weeks old; Trivy is pinned to a version. Image tags are commit SHAs (never `latest`), so
+a deploy names exactly what it runs, and rollback = deploying an older SHA.
+
+**Smoke test:** every asset URL on the page carries the build's deployment ID (`?dpl=<SHA>`), so
+the job checks that `https://chetannamane.com` actually serves the new commit, not just that some
+pod answers `/api/healthz`.
+
+**Measured (2026-10-14, run 38453184814):** lint 37 s, build + scan + push 118 s, deploy + smoke
+test 37 s; push to live in about 3.5 minutes. Rolling update: one new pod ready before an old one
+stopped, no downtime.
+
+**Try it:** push to `main` (or Actions → ci-cd → Run workflow), then
+`curl -s https://chetannamane.com | grep -o 'dpl=[0-9a-f]*' | sort -u`.

@@ -44,6 +44,8 @@ Updated after every checkpoint.
 | [D-33](#d-33-warm-up-the-shaders-the-intro-really-uses) | Warm up the shaders the intro really uses | 7c |
 | [D-34](#d-34-boot-ends-when-the-files-are-downloaded) | Boot ends when the files are downloaded | 7c |
 | [D-35](#d-35-measure-frame-rate-with-a-scripted-browser) | Measure frame rate with a scripted browser | 7c |
+| [D-36](#d-36-keyless-deploys-oidc-role-scoped-to-the-production-environment) | Keyless deploys: OIDC role scoped to the production environment | 7d |
+| [D-37](#d-37-pipeline-shape-scan-the-image-you-push) | Pipeline shape: scan the image you push | 7d |
 
 ---
 
@@ -371,3 +373,33 @@ Updated after every checkpoint.
   and optionally a DevTools trace. No dependencies (Node's built-in WebSocket).
 - **Why:** repeatable before/after numbers on the real site. Lessons: tracing itself costs frames
   (use `--trace=0` for fps); compare alternating A/B rounds, single runs are noisy on a laptop.
+
+### D-36 Keyless deploys: OIDC role scoped to the production environment
+
+- **Options:** an IAM user with access keys stored as GitHub secrets; GitHub OIDC with a role.
+- **Choice:** GitHub OIDC → role `devops-portfolio-github-deploy` (1-hour sessions). The trust
+  policy accepts exactly `repo:chetan080808@203205241/devops-portfolio@1408806533:environment:production`
+  with audience `sts.amazonaws.com`; the `production` environment only accepts the `main` branch.
+- **Why:** no long-lived credentials to leak or rotate. Scoping to the environment (instead of a
+  branch ref) means GitHub enforces the branch rule before a token is issued.
+- **Found on the first deploy:** GitHub issues this repository's `sub` with the immutable account
+  and repository IDs (`owner@id/repo@id`). The name-only condition never matched; CloudTrail showed
+  the exact claim. Matching the IDs is also stricter: a re-created account or repository with the
+  same name can't use the role.
+- **Trade-off:** the role may send `AWS-RunShellScript` to the node, so anything that can deploy can
+  run commands as root there. Planned (Phase 8): a custom SSM document that only runs the deploy
+  with a validated image-tag parameter, and `ssm:SendCommand` restricted to it.
+
+### D-37 Pipeline shape: scan the image you push
+
+- **Choice:** `lint` (with `next typegen`) → `build` (into the runner's Docker) → Trivy on that
+  image (fail on fixable HIGH/CRITICAL) → `docker push` of the same image → `deploy` in
+  `production` → smoke test that the site serves `?dpl=<SHA>`. Pull requests stop after the scan.
+  Actions pinned to commit SHAs (releases ≥ 2 weeks old); deploy skipped while the role variable is
+  missing.
+- **Why:** pushing a rebuild after the scan could ship bytes that were never scanned; a health check
+  alone can't tell an old pod from the new release; tags can be moved, commit SHAs can't.
+- **Found on the first run:** `tsc` failed in CI but not locally: Next generates global types
+  (`LayoutProps`) into `.next/types`, which a fresh checkout doesn't have. Fixed with
+  `next typegen` before the type-check.
+- **Measured:** push to live in ~3.5 min (lint 37 s, build + scan + push 118 s, deploy 37 s).
