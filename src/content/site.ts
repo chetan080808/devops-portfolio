@@ -308,11 +308,4 @@ export const site: SiteContent = {
     { kind: "email", label: "Email", href: "mailto:chetannamne2609@gmail.com", handle: "chetannamne2609@gmail.com" },
   ],
 
-  footer: {
-    // Placeholders — wired to real CI data in Phase 7
-    buildStatus: "passing",
-    lastDeploy: "pending",
-    podCount: 3,
-    version: "v0.1.0",
-  },
 };

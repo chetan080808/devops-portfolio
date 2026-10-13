@@ -20,10 +20,15 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Build metadata (CI passes real values; local builds keep the defaults).
+# CI_RUN_ID / CI_RUN_NUMBER: the GitHub Actions run, shown in the footer (empty = local build).
 ARG GIT_SHA=""
 ARG BUILD_TIME=""
+ARG CI_RUN_ID=""
+ARG CI_RUN_NUMBER=""
 ENV GIT_SHA=${GIT_SHA} \
     BUILD_TIME=${BUILD_TIME} \
+    CI_RUN_ID=${CI_RUN_ID} \
+    CI_RUN_NUMBER=${CI_RUN_NUMBER} \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -49,6 +54,13 @@ COPY --from=builder --chown=node:node /app/src/app/og ./src/app/og
 
 ARG GIT_SHA=""
 ARG BUILD_TIME=""
+ARG CI_RUN_ID=""
+ARG CI_RUN_NUMBER=""
+# Same build metadata at runtime, for /api/build-info.
+ENV GIT_SHA=${GIT_SHA} \
+    BUILD_TIME=${BUILD_TIME} \
+    CI_RUN_ID=${CI_RUN_ID} \
+    CI_RUN_NUMBER=${CI_RUN_NUMBER}
 LABEL org.opencontainers.image.title="devops-portfolio" \
       org.opencontainers.image.source="https://github.com/chetan080808/devops-portfolio" \
       org.opencontainers.image.revision="${GIT_SHA}" \

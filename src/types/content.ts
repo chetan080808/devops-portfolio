@@ -159,10 +159,4 @@ export interface SiteContent {
   };
   dashboard: DashboardPanel[];
   socials: SocialLink[];
-  footer: {
-    buildStatus: string;
-    lastDeploy: string;
-    podCount: number;
-    version: string;
-  };
 }

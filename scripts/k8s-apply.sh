@@ -32,6 +32,8 @@ if grep -q "$image:unset" <<<"$manifests"; then
   [[ -n $tag ]] || { echo "error: $target needs an image tag (commit SHA)" >&2; exit 2; }
   manifests=${manifests//"$image:unset"/"$image:$tag"}
 fi
+# Deploy time for the site footer (DEPLOYED_AT in deployment.yaml).
+manifests=${manifests//__DEPLOYED_AT__/$(date -u +%Y-%m-%dT%H:%M:%SZ)}
 
 instance=${NODE_INSTANCE_ID:-$(aws ec2 describe-instances --region "$region" \
   --filters Name=tag:Name,Values=devops-portfolio-k3s Name=instance-state-name,Values=running \
