@@ -46,3 +46,20 @@ variable "k3s_version" {
   type        = string
   default     = "v1.36.5+k3s1"
 }
+
+variable "github_owner" {
+  description = "GitHub account that owns the repository (lowercase)."
+  type        = string
+  default     = "chetan080808"
+}
+
+variable "github_repo" {
+  type    = string
+  default = "devops-portfolio"
+}
+
+variable "github_environment" {
+  description = "GitHub environment whose jobs may assume the deploy role (its branch rule: main only)."
+  type        = string
+  default     = "production"
+}
