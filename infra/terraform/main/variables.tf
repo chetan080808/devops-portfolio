@@ -53,9 +53,21 @@ variable "github_owner" {
   default     = "chetan080808"
 }
 
+variable "github_owner_id" {
+  description = "Immutable numeric ID of the GitHub account (api.github.com/users/<owner>)."
+  type        = number
+  default     = 203205241
+}
+
 variable "github_repo" {
   type    = string
   default = "devops-portfolio"
+}
+
+variable "github_repo_id" {
+  description = "Immutable numeric ID of the repository (api.github.com/repos/<owner>/<repo>)."
+  type        = number
+  default     = 1408806533
 }
 
 variable "github_environment" {

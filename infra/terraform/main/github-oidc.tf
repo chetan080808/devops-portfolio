@@ -25,14 +25,15 @@ data "aws_iam_policy_document" "github_deploy_trust" {
 
     # Only jobs that run in this repository's GitHub environment (`environment: production` in
     # the workflow). The environment's deployment-branch rule allows main only, so the branch is
-    # enforced by GitHub before a token is even issued. (`sub` is case-sensitive and carries
-    # GitHub's canonical owner casing, so both spellings of the owner are listed.)
+    # enforced by GitHub before a token is even issued.
+    # GitHub issues this repository's `sub` with the immutable account and repository IDs
+    # (owner@id/repo@id), seen in CloudTrail on 2026-10-13. Matching the IDs means a deleted and
+    # re-created account or repository with the same name could never assume this role.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        for owner in distinct([var.github_owner, title(var.github_owner)]) :
-        "repo:${owner}/${var.github_repo}:environment:${var.github_environment}"
+        "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:environment:${var.github_environment}",
       ]
     }
   }
