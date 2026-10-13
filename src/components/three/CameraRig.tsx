@@ -2,7 +2,15 @@
 
 import { useFrame } from "@react-three/fiber";
 import { MathUtils, PerspectiveCamera, Vector3 } from "three";
-import { CAMERA_FIT, CAMERA_KEYS, IDLE, WHALE_SETTLED_AT, WHALE_TRACKING } from "./hero/choreography";
+import {
+  CAMERA_FIT,
+  CAMERA_HOME,
+  CAMERA_KEYS,
+  IDLE,
+  MOBILE_FRAME,
+  WHALE_SETTLED_AT,
+  WHALE_TRACKING,
+} from "./hero/choreography";
 import { whaleTrack } from "./hero/tracking";
 import { power2InOut, span, useIntroClock } from "./intro";
 import { canvasOrigin, heroLayout } from "./heroLayout";
@@ -17,11 +25,20 @@ const BLEED_X = 0.09;
 const BLEED_Y = 0.07;
 
 const position = new Vector3();
+/** Farthest any camera key gets from the home pose (the close-up): scales the mobile zoom weight. */
+const MAX_FROM_HOME = Math.max(
+  ...CAMERA_KEYS.map((k) => k.position.distanceTo(CAMERA_HOME.position)),
+  1e-3,
+);
 const camUp = new Vector3();
 const target = new Vector3();
 
 /** Eased value of a piecewise schedule at time t (holds the ends). */
-function sample<K extends { t: number }>(keys: K[], t: number, lerp: (a: K, b: K, p: number) => void) {
+function sample<K extends { t: number }>(
+  keys: K[],
+  t: number,
+  lerp: (a: K, b: K, p: number) => void,
+) {
   let i = keys.findIndex((k) => k.t > t);
   if (i === -1) i = keys.length;
   const a = keys[Math.max(0, i - 1)];
@@ -47,16 +64,38 @@ export function CameraRig() {
       target.lerpVectors(a.target, b.target, p);
     });
     let weight = 0;
-    sample(WHALE_TRACKING, t, (a, b, p) => (weight = MathUtils.lerp(a.weight, b.weight, p)));
+    sample(
+      WHALE_TRACKING,
+      t,
+      (a, b, p) => (weight = MathUtils.lerp(a.weight, b.weight, p)),
+    );
     if (weight > 0) target.lerp(whaleTrack, weight);
 
     // Idle parallax from the mouse (zero on mobile / reduced motion), faded in after the intro.
-    const idle = MathUtils.smoothstep(t, WHALE_SETTLED_AT, WHALE_SETTLED_AT + IDLE.fadeIn);
+    const idle = MathUtils.smoothstep(
+      t,
+      WHALE_SETTLED_AT,
+      WHALE_SETTLED_AT + IDLE.fadeIn,
+    );
     position.x += pointer.smoothed.x * IDLE.parallax.x * idle;
     position.y += pointer.smoothed.y * IDLE.parallax.y * idle;
 
     const camera = state.camera;
-    if (camera instanceof PerspectiveCamera) frameCamera(camera, state.size.width, state.size.height);
+    // Mobile zoom: full at the home pose, none at the close-up.
+    const atHome =
+      1 -
+      MathUtils.clamp(
+        position.distanceTo(CAMERA_HOME.position) / MAX_FROM_HOME,
+        0,
+        1,
+      );
+    const zoom = MathUtils.lerp(
+      1,
+      MOBILE_FRAME.zoom,
+      MathUtils.smoothstep(atHome, 0, 1),
+    );
+    if (camera instanceof PerspectiveCamera)
+      frameCamera(camera, state.size.width, state.size.height, zoom);
     camera.position.copy(position);
     camera.lookAt(target);
 
@@ -64,9 +103,15 @@ export function CameraRig() {
     // in world units at the cluster's depth, instead of lens-shifting. The hero scene scrolls away
     // with the page (plus a touch of parallax), and anything that stays on screen — the whale in
     // 4a — stays near the optical axis, so it never gets the stretched, steep off-axis look.
-    if (heroLayout.fullBleed && camera instanceof PerspectiveCamera && camera.view?.enabled) {
+    if (
+      heroLayout.fullBleed &&
+      camera instanceof PerspectiveCamera &&
+      camera.view?.enabled
+    ) {
       const dist = position.distanceTo(target);
-      const worldPerPx = (2 * dist * Math.tan(MathUtils.degToRad(camera.fov) / 2)) / camera.view.fullHeight;
+      const worldPerPx =
+        (2 * dist * Math.tan(MathUtils.degToRad(camera.fov) / 2)) /
+        camera.view.fullHeight;
       camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
       camera.position.addScaledVector(camUp, -window.scrollY * worldPerPx);
     }
@@ -85,7 +130,12 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-4;
  * Compares against the camera's actual values every frame (no cached key): R3F resets
  * `camera.aspect` on its own when it handles a resize.
  */
-function frameCamera(camera: PerspectiveCamera, w: number, h: number) {
+function frameCamera(
+  camera: PerspectiveCamera,
+  w: number,
+  h: number,
+  mobileZoom: number,
+) {
   const { fullBleed, stage: page } = heroLayout;
   // Stage in canvas px, framed as at scroll 0: scrolling is a camera pan (see CameraRig), not a
   // lens shift. (Mobile: the canvas lives in the stage, so its origin is the stage's.)
@@ -121,8 +171,32 @@ function frameCamera(camera: PerspectiveCamera, w: number, h: number) {
   } else {
     const aspect = w / h;
     const fov = fitFov(aspect);
-    if (!camera.view?.enabled && near(camera.aspect, aspect) && near(camera.fov, fov)) return;
-    camera.clearViewOffset();
+    // Zoomed window of the composed frame: the frame is (w·z × h·z), the canvas shows w × h of it
+    // centred on MOBILE_FRAME.center (clamped so it never runs past the frame's edges).
+    const z = Math.max(1, mobileZoom);
+    const fw = w * z;
+    const fh = h * z;
+    const ox = MathUtils.clamp(MOBILE_FRAME.center.x * fw - w / 2, 0, fw - w);
+    const oy = MathUtils.clamp(MOBILE_FRAME.center.y * fh - h / 2, 0, fh - h);
+    const v = camera.view;
+    if (z <= 1.0001) {
+      if (!v?.enabled && near(camera.aspect, aspect) && near(camera.fov, fov))
+        return;
+      camera.clearViewOffset();
+    } else {
+      const same =
+        v?.enabled &&
+        near(camera.aspect, aspect) &&
+        near(camera.fov, fov) &&
+        near(v.fullWidth, fw) &&
+        near(v.fullHeight, fh) &&
+        near(v.offsetX, ox) &&
+        near(v.offsetY, oy) &&
+        near(v.width, w) &&
+        near(v.height, h);
+      if (same) return;
+      camera.setViewOffset(fw, fh, ox, oy, w, h);
+    }
     camera.aspect = aspect;
     camera.fov = fov;
   }

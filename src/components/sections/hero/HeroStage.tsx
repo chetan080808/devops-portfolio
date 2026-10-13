@@ -27,9 +27,10 @@ const maskStyle = (image: string): CSSProperties => ({
 });
 
 /**
- * Phones (narrow + touch) get a still of the scene instead of the 3D canvas, with a "load 3D
- * anyway" button. Same condition as the `max-md:pointer-coarse:` classes below, so the server HTML
- * already shows the right thing.
+ * Phones (narrow + touch) first get a still of the scene. Same condition as the
+ * `max-md:pointer-coarse:` classes below, so the server HTML already shows the right thing. Capable
+ * phones then load the 3D on their own once the page is idle (it fades in over the still);
+ * low-end phones and Save-Data keep the still, with a "load 3D anyway" button.
  */
 const PHONE_QUERY = "(max-width: 767px) and (pointer: coarse)";
 const subscribePhone = (onChange: () => void) => {
@@ -39,6 +40,21 @@ const subscribePhone = (onChange: () => void) => {
 };
 /** null during SSR + hydration: nothing mounts the canvas (and fetches the 3D chunk) until known. */
 const usePhone = () => useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => null);
+
+/** Enough memory and cores for the scene, and no data-saving / 2G connection. */
+function canAutoLoad3d() {
+  const n = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean; effectiveType?: string } };
+  if (n.connection?.saveData) return false;
+  if (/(^|-)2g$/.test(n.connection?.effectiveType ?? "")) return false;
+  // deviceMemory is Chromium-only (undefined on iOS): judge by cores there.
+  if (n.deviceMemory !== undefined && n.deviceMemory < 4) return false;
+  if (n.hardwareConcurrency !== undefined && n.hardwareConcurrency < 4) return false;
+  return true;
+}
+
+const noSubscribe = () => () => {};
+/** null during SSR + hydration; then fixed for the page's life. */
+const useAutoCapable = () => useSyncExternalStore(noSubscribe, canAutoLoad3d, () => null);
 
 // three + R3F + scene code live in their own chunk, fetched on the client only.
 const HeroCanvas = dynamic(() => import("@/components/three/HeroCanvas"), { ssr: false });
@@ -60,11 +76,33 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
   const failed = useSceneState((s) => s.failed);
   const phone = usePhone();
   const [want3d, setWant3d] = useState(false);
+  // null until known (client only): capable phones load the 3D themselves, no button.
+  const autoCapable = useAutoCapable();
   const staticHero = phone === true && !want3d;
   const show3d = (phone === false || want3d) && !failed;
   useEffect(() => {
-    if (phone !== null) sceneStore.set({ deferred: staticHero });
-  }, [phone, staticHero]);
+    if (phone !== true || autoCapable !== true) return;
+    // After the page has loaded and gone idle: the text is already up, the 3D fades in later.
+    let idle = 0;
+    let timer = 0;
+    const go = () => setWant3d(true);
+    // Safari has no requestIdleCallback (the DOM types assume it always exists).
+    const ric = window.requestIdleCallback as Window["requestIdleCallback"] | undefined;
+    const schedule = () => {
+      if (ric) idle = ric(go, { timeout: 2500 });
+      else timer = window.setTimeout(go, 1200);
+    };
+    if (document.readyState === "complete") schedule();
+    else window.addEventListener("load", schedule, { once: true });
+    return () => {
+      window.removeEventListener("load", schedule);
+      if (idle) window.cancelIdleCallback?.(idle);
+      window.clearTimeout(timer);
+    };
+  }, [phone, autoCapable]);
+  useEffect(() => {
+    if (phone !== null) sceneStore.set({ deferred: staticHero, deferredAuto: autoCapable === true });
+  }, [phone, staticHero, autoCapable]);
 
   // Stop the render loop while neither the hero nor Deployments (where the minis land) is visible.
   useEffect(() => {
@@ -113,7 +151,12 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
     // column pushed the cluster below the fold on short screens).
     <div
       ref={ref}
-      className="relative mx-auto aspect-square w-full max-w-[34rem] lg:aspect-auto lg:h-[clamp(21rem,calc(100svh-7.5rem),38rem)] lg:max-w-none lg:self-start"
+      className={cn(
+        "relative mx-auto aspect-square w-full max-w-[34rem] lg:aspect-auto lg:h-[clamp(21rem,calc(100svh-7.5rem),38rem)] lg:max-w-none lg:self-start",
+        // Below lg the stage sits between the name and the pitch (Hero.tsx); on phones it runs
+        // edge to edge (past the page padding) so the scene gets the whole width.
+        "max-lg:order-2 max-md:-mx-4 max-md:w-[calc(100%+2rem)] max-md:max-w-none",
+      )}
     >
       <div className="relative h-full w-full">
         <div className={cn("absolute inset-0 transition-opacity duration-700", ready && "opacity-0")}>
@@ -146,7 +189,7 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
                 ? `[ OK ] ${nodes}/${nodes} nodes ready`
                 : "scheduling nodes…"}
           </p>
-          {staticHero ? (
+          {staticHero && autoCapable === false ? (
             <button
               type="button"
               onClick={() => setWant3d(true)}

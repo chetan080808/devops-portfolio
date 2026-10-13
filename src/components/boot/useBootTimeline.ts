@@ -74,7 +74,7 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
       setPulling(false);
       const { assetsTotal } = sceneStore.get();
       if (outcome === "deferred") {
-        push("[ OK ] static hero · 3D on demand", "ok");
+        push(sceneStore.get().deferredAuto ? "[ OK ] hero ready · 3D streaming in" : "[ OK ] static hero · 3D on demand", "ok");
         after(90, () => push(`[ OK ] ${readyLine}`, "ok"));
       } else if (outcome === "ready") {
         push(`[ OK ] pulled ${assetsTotal} layers`, "ok");

@@ -159,6 +159,14 @@ export interface CameraKey {
  */
 export const CAMERA_FIT = { hfov: 46, minVfov: 33, maxVfov: 50 };
 
+/**
+ * Phones / tablets (canvas inside the stage): the desktop composition leaves most of the stage
+ * empty, so the canvas shows a zoomed window of it. `center` = where the whale + cluster sit in
+ * the composed frame (0–1, x right, y down). Eased out while the camera leaves its home pose (the
+ * intro's container close-up would be cropped too tight), see CameraRig.
+ */
+export const MOBILE_FRAME = { zoom: 1.55, center: { x: 0.55, y: 0.57 } };
+
 /** Overview framing (cluster in the lower half, whale hover above). */
 /**
  * ~14° above the scene. Pulled back (×HOME_ZOOM) so the cluster is smaller and sits lower: the

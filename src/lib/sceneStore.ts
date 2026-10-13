@@ -15,8 +15,10 @@ export interface SceneState {
   failed: boolean;
   /** Why: "no-gpu" = only software WebGL (static on purpose), "error" = no WebGL / load error */
   failReason: "no-gpu" | "error" | null;
-  /** Phones: the 3D scene isn't loaded unless asked for (static image instead); boot counts it as done */
+  /** Phones: the 3D scene isn't loaded yet (static image instead); boot counts it as done */
   deferred: boolean;
+  /** …and it will load by itself once the page is idle (capable phone), vs only on request */
+  deferredAuto: boolean;
   /** Boot overlay finished or skipped; the hero intro may start */
   bootDone: boolean;
   /** Hero intro: every node landed and linked */
@@ -33,6 +35,7 @@ let state: SceneState = {
   failed: false,
   failReason: null,
   deferred: false,
+  deferredAuto: false,
   bootDone: false,
   clusterReady: false,
   progress: 0,
