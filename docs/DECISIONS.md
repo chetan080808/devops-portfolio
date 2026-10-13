@@ -34,6 +34,12 @@ Updated after every checkpoint.
 | [D-23](#d-23-pod-network-1052016) | Pod network 10.52.0.0/16 | 7b |
 | [D-24](#d-24-lf-line-endings-for-scripts-and-terraform) | LF line endings for scripts and Terraform | 7b |
 | [D-25](#d-25-instance-size-stays-t3small-for-now) | Instance size stays t3.small (for now) | 7b |
+| [D-26](#d-26-plain-manifests--kustomize-for-the-app) | Plain manifests + Kustomize for the app | 7c |
+| [D-27](#d-27-deploy-through-ssm-not-the-kubernetes-api) | Deploy through SSM, not the Kubernetes API | 7c |
+| [D-28](#d-28-image-in-ghcr-tagged-with-the-commit-sha) | Image in GHCR, tagged with the commit SHA | 7c |
+| [D-29](#d-29-cert-manager-staging-first) | cert-manager, staging first | 7c |
+| [D-30](#d-30-redirects-and-security-headers) | Redirects and security headers | 7c |
+| [D-31](#d-31-pod-hardening-and-sizing) | Pod hardening and sizing | 7c |
 
 ---
 
@@ -247,6 +253,67 @@ Updated after every checkpoint.
   | t3.medium (4 GiB) | $0.0448/hour | ≈ $38.17, **over the $28 budget** |
 
 - **Choice:** stay on t3.small; give the site's pods tight memory requests and limits in 7c.
+- **Measured again (2026-10-13, site live):** 1386 Mi of 1.9 GiB used (72%), ~467 MB available.
+  The two site pods use ~45 Mi each; most of the memory is k3s itself and the system add-ons
+  (cert-manager ~78 Mi in three pods, Traefik 30 Mi, metrics-server 22 Mi).
 - **Revisit when:** memory pressure or OOM kills show up, or a second app (e.g. the Car Rental
   phase) needs room. Also to evaluate (Phase 8): t4g.small (Graviton, arm64 image built in CI)
   and a 1-year Savings Plan, with exact `ap-south-1` prices.
+
+### D-26 Plain manifests + Kustomize for the app
+
+- **Options:** a Helm chart for the site; plain YAML with Kustomize (built into kubectl).
+- **Choice:** plain manifests + Kustomize for the site (`deploy/k8s/app`); third-party software
+  (cert-manager) through k3s' built-in Helm controller (`HelmChart` object), pinned to v1.21.2.
+- **Why:** one environment and one app don't need templating; plain YAML is easier to read and
+  review. The only per-deploy value is the image tag, which Kustomize sets.
+
+### D-27 Deploy through SSM, not the Kubernetes API
+
+- **Options:** open 6443 (or tunnel it) and use kubectl remotely; a GitOps agent on the cluster
+  (Argo CD / Flux, extra memory on a 2 GiB node); send the manifests through SSM Run Command.
+- **Choice:** `scripts/k8s-apply.sh` renders locally and applies on the node via SSM; the same
+  script will run in CI (7d) with an OIDC role.
+- **Why:** no new open port, no kubeconfig leaves the server, every deploy is an AWS-logged
+  command, and nothing extra runs on the node. `DRY_RUN=1` gives a server-side check first.
+
+### D-28 Image in GHCR, tagged with the commit SHA
+
+- **Options:** ECR (per-GB storage, the node would need ECR pull rights); GHCR.
+- **Choice:** GHCR, built by GitHub Actions with the workflow's `GITHUB_TOKEN`; tag = full commit
+  SHA (no `latest`); actions pinned to commit SHAs. The repository is private, the **package is
+  public**.
+- **Why:** no registry cost, no personal access token anywhere, no pull secret on the server. The
+  image only holds the built site, which is public anyway. An immutable SHA tag means a deploy
+  always runs exactly the commit it names, and rollback = deploy an older SHA.
+
+### D-29 cert-manager, staging first
+
+- **Options:** Traefik's built-in ACME client (stores certificates in a file, needs a persistent
+  volume); cert-manager (stores them as Kubernetes Secrets).
+- **Choice:** cert-manager with HTTP-01 through Traefik. Staging certificate first, production
+  only after staging was Ready; staging cert and secret deleted afterwards.
+- **Why:** the standard Kubernetes way, no volume to manage, automatic renewal. Staging proves
+  DNS, port 80 and the challenge route without spending production rate limits. Measured: both
+  issued in under 40 s.
+
+### D-30 Redirects and security headers
+
+- **Choice:** `www` → apex and HTTP → HTTPS as 301s in Traefik middlewares (www in one hop, path
+  and query kept). HSTS 1 year **without** `includeSubDomains`/preload; `nosniff`, `DENY`
+  framing, `strict-origin-when-cross-origin`. No CSP yet.
+- **Why:** one canonical URL for search engines. `includeSubDomains` would force HTTPS on future
+  subdomains (Phase 9) before they have certificates. A CSP needs the inline boot script and
+  JSON-LD hashed first; it's a separate change.
+
+### D-31 Pod hardening and sizing
+
+- **Choice:** uid 1000, read-only root filesystem, all capabilities dropped, no service-account
+  token, "restricted" Pod Security Standard on the namespace; `/tmp` and `.next/cache` as small
+  `emptyDir`s. Memory request 96 Mi / limit 256 Mi, CPU request 50m, no CPU limit. HPA 2–3 pods
+  at 70% CPU; PDB `minAvailable: 1`; NetworkPolicy: only Traefik may reach port 3000. Rolling
+  update `maxSurge 1 / maxUnavailable 0` plus a 5 s pre-stop pause.
+- **Why:** a compromised pod can't write to its own image, gain privileges or talk to the
+  Kubernetes API. Requests match measured use (~45–60 Mi per pod) so the scheduler's view of the
+  2 GiB node is honest; no CPU limit because throttling hurts latency more than it protects on a
+  dedicated node. The max of 3 pods is set by memory (D-25), not CPU.

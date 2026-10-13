@@ -17,7 +17,7 @@ flowchart LR
   user((Visitor)) -->|HTTPS| ing
 ```
 
-Status: **7a + 7b done** (container image; AWS server running k3s). Pipeline, app deploy and DNS are the plan for 7c–7e.
+Status: **7a–7c done**: live at https://chetannamane.com (image built in GitHub Actions, k3s on EC2, Let's Encrypt). The full CI/CD pipeline (lint → Trivy → deploy) and real footer data are the plan for 7d–7e.
 
 ## 1. Container image (7a)
 
@@ -120,4 +120,66 @@ terraform init -backend-config=backend.hcl
 terraform plan
 aws ssm start-session --target "$(terraform output -raw instance_id)"
 sudo k3s kubectl get nodes,pods -A
+```
+
+## 3. Kubernetes, HTTPS and deploys (7c)
+
+**What:** the site runs as two pods behind Traefik on `https://chetannamane.com`, with a free
+Let's Encrypt certificate that renews itself. Manifests live in `deploy/k8s/`:
+
+| Folder | Contains | Applied |
+| --- | --- | --- |
+| `platform/` | cert-manager v1.21.2, installed by k3s' built-in Helm controller | once |
+| `issuers/` | Let's Encrypt staging + production accounts (HTTP-01 through Traefik) | once |
+| `app/` | namespace, Deployment, Service, Ingresses, redirects/headers, HPA, PDB, NetworkPolicy | every deploy |
+| `tls/` | the certificate (staging dry run, then production) | once |
+
+**Request path:** DNS (Cloudflare, "DNS only") → Elastic IP → k3s ServiceLB → Traefik (80/443)
+→ Service `portfolio` → pod port 3000.
+
+**Image:** `.github/workflows/image.yml` builds on every push to `main` and pushes
+`ghcr.io/chetan080808/devops-portfolio:<full commit SHA>` with the workflow's own
+`GITHUB_TOKEN`. The repository is private; the image package is public, so the server pulls it
+without any stored credential (it only contains the built site, no source).
+
+**Deploy:** `scripts/k8s-apply.sh deploy/k8s/app <sha>` renders the manifests on the laptop (or
+CI), sends them inside an AWS SSM Run Command, and the node applies them with its own kubectl,
+then waits for the rollout. The Kubernetes API (6443) is never exposed. `DRY_RUN=1` validates
+against the live cluster without changing anything.
+
+**The pods**
+
+- Run as uid 1000, read-only root filesystem, no Linux capabilities, no service-account token,
+  in a namespace that enforces the "restricted" Pod Security Standard. Writable: `/tmp` and
+  `.next/cache` (small `emptyDir` volumes).
+- Probes on `/api/healthz`: startup (up to 60 s), readiness (every 5 s), liveness (every 10 s).
+- Memory: request 96 Mi, limit 256 Mi; measured ~45 Mi per pod in production.
+- Rolling update with `maxSurge 1`, `maxUnavailable 0`: a new pod must be ready before an old
+  one stops. A 5 s pre-stop pause lets Traefik drop the pod before it exits.
+- HPA keeps 2 pods and allows a 3rd above 70% CPU; the disruption budget keeps at least one
+  pod during maintenance; a NetworkPolicy lets only Traefik reach the pods.
+
+**HTTPS and redirects**
+
+- cert-manager proves domain ownership over HTTP (HTTP-01) and renews ~30 days before expiry.
+  Staging first (to avoid production rate limits), then production. Both names are on one
+  certificate (ECDSA P-256).
+- `http://…` → `https://chetannamane.com/…` and `www` → apex, both 301, path and query kept, www
+  in one hop.
+- Headers: HSTS 1 year (no `includeSubDomains` yet; future subdomains need TLS first),
+  `nosniff`, `X-Frame-Options: DENY`, `strict-origin-when-cross-origin`.
+
+**Measured (2026-10-13)**
+
+- Certificate: Let's Encrypt, apex + www, valid to 2027-01-11, TLS 1.3. Staging and production
+  each issued in under 40 s.
+- Home page over verified HTTPS: 200 in 0.16 s from India.
+- First image pull on the node: ~3 min 20 s for 85 MB (cached afterwards; pods start in ~2 s).
+- Node memory with everything running: 1386 Mi of 1.9 GiB (72%), ~467 MB available.
+
+**Try it**
+
+```bash
+scripts/k8s-apply.sh deploy/k8s/app "$(git rev-parse HEAD)"   # after the image workflow passed
+curl -I https://chetannamane.com
 ```
