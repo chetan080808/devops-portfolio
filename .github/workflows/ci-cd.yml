@@ -42,6 +42,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci --no-audit --no-fund
+      # Next generates route/layout types (e.g. the global LayoutProps) into .next/types; a fresh
+      # checkout has none, so tsc fails without this step.
+      - name: Generate Next.js types
+        run: npx next typegen
       - name: Type-check
         run: npx tsc --noEmit
       - name: Lint
