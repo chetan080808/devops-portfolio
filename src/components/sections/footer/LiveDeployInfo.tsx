@@ -48,7 +48,7 @@ export function LiveDeployInfo() {
     <>
       <LiveCell label="image" busy={pending}>
         {tag ? (
-          <span className="text-fg" title={info?.image ?? undefined}>
+          <span className="truncate text-fg" title={info?.image ?? undefined}>
             {`devops-portfolio:${tag.slice(0, 7)}`}
           </span>
         ) : (
@@ -64,18 +64,23 @@ export function LiveDeployInfo() {
           <span className="text-faint">{missing}</span>
         )}
       </LiveCell>
-      <LiveCell label="served by" busy={pending}>
-        {info?.pod ? <span className="truncate text-fg">{`pod/${info.pod}`}</span> : <span className="text-faint">{missing}</span>}
+      {/* Full row on phones: 5 cells in 2 columns would leave the long pod name a half cell. */}
+      <LiveCell label="served by" busy={pending} className="col-span-2 md:col-span-1">
+        {info?.pod ? (
+          <span className="truncate text-fg" title={`pod/${info.pod}`}>{`pod/${info.pod}`}</span>
+        ) : (
+          <span className="text-faint">{missing}</span>
+        )}
       </LiveCell>
     </>
   );
 }
 
-function LiveCell({ label, busy, children }: { label: string; busy: boolean; children: ReactNode }) {
+function LiveCell({ label, busy, className, children }: { label: string; busy: boolean; className?: string; children: ReactNode }) {
   return (
-    <div className="min-w-0 bg-bg px-4 py-4" aria-busy={busy}>
+    <div className={`min-w-0 bg-bg px-4 py-4 ${className ?? ""}`} aria-busy={busy}>
       <dt className="font-mono text-[0.68rem] text-faint">{label}</dt>
-      <dd className="mt-1 flex min-w-0 items-center gap-2 font-mono text-sm">{children}</dd>
+      <dd className="mt-1 flex min-w-0 items-center gap-2 font-mono text-sm whitespace-nowrap">{children}</dd>
     </div>
   );
 }

@@ -73,7 +73,7 @@ function Cell({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0 bg-bg px-4 py-4">
       <dt className="font-mono text-[0.68rem] text-faint">{label}</dt>
-      <dd className="mt-1 flex min-w-0 items-center gap-2 truncate font-mono text-sm text-fg">{children}</dd>
+      <dd className="mt-1 flex min-w-0 items-center gap-2 font-mono text-sm whitespace-nowrap text-fg">{children}</dd>
     </div>
   );
 }
