@@ -56,10 +56,17 @@ export const sceneStore = {
 
 export const loadProgress = (s: SceneState) => s.progress;
 
-/** Chunk download counts for 20%, asset files for 70%, first rendered frame for the rest. */
+/**
+ * Every file the scene needs is here (the 3D chunk and all models). The boot ends on this, not on
+ * `sceneReady`: shader warm-up keeps going behind the boot's fade, and the hero swaps from the
+ * static cluster to 3D once it's done.
+ */
+export const assetsDownloaded = (s: SceneState) => s.chunkLoaded && s.assetsTotal > 0 && s.assetsLoaded >= s.assetsTotal;
+
+/** Chunk download counts for 20%, model files for the other 80%. */
 function computeProgress(s: SceneState): number {
-  if (s.sceneReady || s.deferred) return 1;
+  if (s.sceneReady || s.deferred || assetsDownloaded(s)) return 1;
   if (!s.chunkLoaded) return 0;
   const assets = s.assetsTotal > 0 ? s.assetsLoaded / s.assetsTotal : 0;
-  return 0.2 + 0.7 * assets;
+  return 0.2 + 0.8 * assets;
 }

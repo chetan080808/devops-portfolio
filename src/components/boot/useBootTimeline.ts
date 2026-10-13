@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { site } from "@/content/site";
-import { sceneStore } from "@/lib/sceneStore";
+import { assetsDownloaded, sceneStore } from "@/lib/sceneStore";
 
 export type LogTone = "plain" | "ok" | "warn";
 export interface LogLine {
@@ -24,8 +24,9 @@ export const SKIP_EXIT_MS = 220;
 
 /**
  * Drives the boot log on a clock that starts at first paint (set by BootGate), so loading,
- * typing and log lines all run in parallel with hydration. Exits on the real scene-ready
- * signal or at the time cap. `active` is false when the gate skipped the intro.
+ * typing and log lines all run in parallel with hydration. Exits once every file has
+ * downloaded (shader warm-up finishes behind the fade; the intro only starts on the first
+ * rendered frame) or at the time cap. `active` is false when the gate skipped the intro.
  */
 export function useBootTimeline(active: boolean, onLeave: () => void) {
   const { command, lines, readyLine } = site.boot;
@@ -95,9 +96,10 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
     const check = () => {
       if (!pullingShown) return;
       const s = sceneStore.get();
-      if (s.sceneReady) finish("ready");
+      // Failure first: on a software-only GPU the files still download, but no 3D will follow.
+      if (s.failed) finish("failed");
+      else if (s.sceneReady || assetsDownloaded(s)) finish("ready");
       else if (s.deferred) finish("deferred");
-      else if (s.failed) finish("failed");
     };
     const unsubscribe = sceneStore.subscribe(check);
     after(pullDelay + 1, () => {
