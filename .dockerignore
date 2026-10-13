@@ -13,7 +13,9 @@ next-env.d.ts
 !.env.example
 *.pem
 
-# local-only notes and design sources
+# notes and design sources: the build needs no top-level docs
+/*.md
+/*.txt
 blender
 *.blend
 *.blend1

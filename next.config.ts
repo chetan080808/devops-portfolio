@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
   // holding the old version gets a hard reload instead of 404ing on missing chunks.
   generateBuildId: gitSha ? async () => gitSha : undefined,
   deploymentId: gitSha,
+  // `next dev` must not generate extra files in the project root.
+  agentRules: false,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
