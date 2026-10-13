@@ -40,6 +40,10 @@ Updated after every checkpoint.
 | [D-29](#d-29-cert-manager-staging-first) | cert-manager, staging first | 7c |
 | [D-30](#d-30-redirects-and-security-headers) | Redirects and security headers | 7c |
 | [D-31](#d-31-pod-hardening-and-sizing) | Pod hardening and sizing | 7c |
+| [D-32](#d-32-looping-animations-only-on-the-compositor) | Looping animations only on the compositor | 7c |
+| [D-33](#d-33-warm-up-the-shaders-the-intro-really-uses) | Warm up the shaders the intro really uses | 7c |
+| [D-34](#d-34-boot-ends-when-the-files-are-downloaded) | Boot ends when the files are downloaded | 7c |
+| [D-35](#d-35-measure-frame-rate-with-a-scripted-browser) | Measure frame rate with a scripted browser | 7c |
 
 ---
 
@@ -317,3 +321,53 @@ Updated after every checkpoint.
   Kubernetes API. Requests match measured use (~45–60 Mi per pod) so the scheduler's view of the
   2 GiB node is honest; no CPU limit because throttling hurts latency more than it protects on a
   dedicated node. The max of 3 pods is set by memory (D-25), not CPU.
+
+### D-32 Looping animations only on the compositor
+
+- **Context:** the live site stuttered while scrolling (35–46 fps). A trace showed the GPU process
+  ~60% busy re-rasterizing page content, not the 3D scene.
+- **Cause:** the fixed full-viewport grid animated `background-position` (under a CSS mask), so
+  the whole viewport was repainted every frame on every part of the page; status dots pulsed
+  `box-shadow`; pipeline stripes animated `background-position` on all five cells.
+- **Choice:** every looping animation moves only `transform`/`opacity`: the grid is painted once on
+  a layer one cell larger than the viewport and drifts by transform, its radial mask became a
+  static background-coloured overlay (same pixels); the dot halo is a scaling `::after` ring; the
+  stripes are their own layer, only in running cells.
+- **Measured (scroll hero → cards → pipeline):** grid running 35–46 fps vs paused 57–58.5. Glass
+  blur and the grid drift together cost ≤ ~3 fps more: kept for the design.
+
+### D-33 Warm up the shaders the intro really uses
+
+- **Context:** ~245 shader program checks (2.3–2.9 s) right when the intro started, although a
+  boot-time warm-up existed.
+- **Cause 1:** three.js builds a different program for a render target (linear output) than for
+  the canvas (sRGB). The warm-up compiled for the canvas, but the scene renders into the bloom
+  composer's target, so nearly everything compiled twice.
+- **Cause 2:** a light inside a hidden group isn't counted. The container's and the whale's point
+  lights sat in groups hidden until they appear, so the light count changed mid-intro and every
+  lit shader on screen recompiled (184 ms + 160 ms). The whale-silhouette pass renders with only
+  its own layer (no lights) and was warmed with all lights, so it compiled at the start of the drop.
+- **Choice:** compile each program for the target and camera layers it is really drawn with; hide
+  only the models, never the groups holding lights (they fade with intensity instead).
+- **Measured:** visible intro 49 → 58–59 fps, no compiles while the 3D is on screen; drop: 0.
+
+### D-34 Boot ends when the files are downloaded
+
+- **Context:** the boot waited for "scene ready" (every shader compiled + first frame), which never
+  came within its 2.9 s cap, so every visitor saw `[ WARN ] still pulling`.
+- **Choice:** finish on "every file downloaded" (`[ OK ] pulled 4 layers` → `… Running`); shader
+  warm-up continues behind the fade while the static cluster shows; the 3D intro starts on its
+  first rendered frame. A software-GPU failure is still reported first.
+- **Measured:** boot ends with `[ OK ]` at 2.0–2.4 s on every run (live and local).
+- **Still open:** the boot screen itself freezes ~0.7–1.1 s on a cold driver cache (first shader
+  compile, here the environment map's PMREM, plus loading the 3D code). Candidate: a precomputed
+  environment map.
+
+### D-35 Measure frame rate with a scripted browser
+
+- **Choice:** `scripts/perf/trace.mjs` drives a separate Chrome (fresh profile, no extensions) over
+  the DevTools protocol through intro, idle + cursor, drop and pipeline, and reports fps, dropped
+  frames, long animation frames with script attribution, slow WebGL calls with the shader name,
+  and optionally a DevTools trace. No dependencies (Node's built-in WebSocket).
+- **Why:** repeatable before/after numbers on the real site. Lessons: tracing itself costs frames
+  (use `--trace=0` for fps); compare alternating A/B rounds, single runs are noisy on a laptop.
