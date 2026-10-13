@@ -1,4 +1,14 @@
-import { Mesh, OrthographicCamera, PlaneGeometry, Scene, type Camera, type Material, type Object3D, type WebGLRenderer } from "three";
+import {
+  Mesh,
+  OrthographicCamera,
+  PlaneGeometry,
+  Scene,
+  type Camera,
+  type Material,
+  type Object3D,
+  type WebGLRenderer,
+  type WebGLRenderTarget,
+} from "three";
 
 /**
  * Shader warm-up. Without it every material compiles synchronously the first time it is drawn:
@@ -6,14 +16,21 @@ import { Mesh, OrthographicCamera, PlaneGeometry, Scene, type Camera, type Mater
  * slow on a cold shader cache). We compile everything during the boot instead, one object at a
  * time with `compileAsync` (KHR_parallel_shader_compile where available), yielding to the browser
  * after real work, so the intro itself plays without compile hitches.
+ *
+ * Every program is compiled for the render target it is really drawn into: three.js builds a
+ * different program for a render target (linear output) than for the canvas (sRGB output), so a
+ * program warmed against the wrong one is compiled a second time on its first real frame
+ * (measured on the live site: ~245 compiles, 2.3–2.9 s, right when the intro started).
  */
 
-/** Fullscreen-pass materials (bloom, mask, output): not in any scene, registered by their owners. */
-export const postMaterials = new Set<Material>();
-/** Extra scenes rendered by hand (e.g. the minis' overlay scene). */
+/** Where the main scene is drawn: the composer's input target (RenderPass), or null = canvas. */
+export const sceneTarget: { current: WebGLRenderTarget | null } = { current: null };
+/** Fullscreen-pass materials (bloom, mask, output) → the target each pass draws into (null = canvas). */
+export const postMaterials = new Map<Material, WebGLRenderTarget | null>();
+/** Extra scenes rendered by hand straight to the canvas (e.g. the minis' overlay scene). */
 export const extraScenes = new Set<Scene>();
-/** Override materials drawn on one layer of the scene (e.g. the whale silhouette pass). */
-export const layerOverrides = new Set<{ material: Material; layer: number }>();
+/** Override materials drawn on one layer of the scene into their own target (whale silhouette). */
+export const layerOverrides = new Set<{ material: Material; layer: number; target: WebGLRenderTarget | null }>();
 
 const isMaterial = (v: unknown): v is Material => !!v && typeof v === "object" && (v as Material).isMaterial === true;
 
@@ -39,7 +56,27 @@ async function maybeYield() {
   lastYield = performance.now();
 }
 
-async function compileEach(gl: WebGLRenderer, root: Object3D, camera: Camera, isCancelled: () => boolean) {
+/**
+ * compileAsync() picks the program variant synchronously (from the current render target), then
+ * waits for the driver; so the target only has to be set around the call itself.
+ */
+function compileFor(gl: WebGLRenderer, target: WebGLRenderTarget | null, object: Object3D, camera: Camera, scene: Scene) {
+  const previous = gl.getRenderTarget();
+  gl.setRenderTarget(target);
+  try {
+    return gl.compileAsync(object, camera, scene);
+  } finally {
+    gl.setRenderTarget(previous);
+  }
+}
+
+async function compileEach(
+  gl: WebGLRenderer,
+  root: Object3D,
+  camera: Camera,
+  target: WebGLRenderTarget | null,
+  isCancelled: () => boolean,
+) {
   const drawables: Object3D[] = [];
   root.traverse((o) => {
     const d = o as Mesh;
@@ -48,17 +85,17 @@ async function compileEach(gl: WebGLRenderer, root: Object3D, camera: Camera, is
   for (const object of drawables) {
     if (isCancelled()) return;
     // `object` is compiled against `root`'s lights (the program depends on them).
-    await gl.compileAsync(object, camera, root as Scene);
+    await compileFor(gl, target, object, camera, root as Scene);
     await maybeYield();
   }
 }
 
 export async function precompile(gl: WebGLRenderer, scene: Scene, camera: Camera, isCancelled: () => boolean) {
-  await compileEach(gl, scene, camera, isCancelled);
-  for (const extra of extraScenes) await compileEach(gl, extra, camera, isCancelled);
+  await compileEach(gl, scene, camera, sceneTarget.current, isCancelled);
+  for (const extra of extraScenes) await compileEach(gl, extra, camera, null, isCancelled);
 
   // Override passes: compile the override against each object on its layer (skinned or not).
-  for (const { material, layer } of layerOverrides) {
+  for (const { material, layer, target } of layerOverrides) {
     const targets: Mesh[] = [];
     scene.traverse((o) => {
       if ((o as Mesh).isMesh && o.layers.isEnabled(layer)) targets.push(o as Mesh);
@@ -66,11 +103,16 @@ export async function precompile(gl: WebGLRenderer, scene: Scene, camera: Camera
     for (const mesh of targets) {
       if (isCancelled()) return;
       const own = mesh.material;
+      const layers = camera.layers.mask;
       mesh.material = material;
+      // The override pass renders with only its layer enabled (whaleSilhouette.ts), so it sees
+      // none of the scene's lights: compile the same variant (light counts are in the program).
+      camera.layers.set(layer);
       try {
-        await gl.compileAsync(mesh, camera, scene);
+        await compileFor(gl, target, mesh, camera, scene);
       } finally {
         mesh.material = own;
+        camera.layers.mask = layers;
       }
       await maybeYield();
     }
@@ -80,11 +122,11 @@ export async function precompile(gl: WebGLRenderer, scene: Scene, camera: Camera
   const quadScene = new Scene();
   const quadCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const geometry = new PlaneGeometry(2, 2);
-  for (const material of postMaterials) {
+  for (const [material, target] of postMaterials) {
     if (isCancelled()) break;
     const quad = new Mesh(geometry, material);
     quadScene.add(quad);
-    await gl.compileAsync(quad, quadCamera, quadScene);
+    await compileFor(gl, target, quad, quadCamera, quadScene);
     quadScene.remove(quad);
     await maybeYield();
   }

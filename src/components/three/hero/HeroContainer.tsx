@@ -77,16 +77,19 @@ export function HeroContainer() {
   }, [doors]);
 
   const group = useRef<Group>(null);
+  // Only the model is hidden before the drop, never the group: a light inside a hidden group isn't
+  // counted, and a light count that changes mid-intro recompiles every lit shader on screen.
+  const body = useRef<Group>(null);
   const light = useRef<PointLight>(null);
   const spill = useRef<MeshBasicMaterial>(null);
   const spillMap = useMemo(() => getSpillTexture(), []);
 
   useFrame(() => {
     const g = group.current;
-    if (!g) return;
+    if (!g || !body.current) return;
     const t = clock.time();
-    g.visible = t >= CONTAINER_DROP.start;
-    if (!g.visible) return;
+    body.current.visible = t >= CONTAINER_DROP.start;
+    if (!body.current.visible) return;
 
     const drop = expoOut(span(t, CONTAINER_DROP.start, CONTAINER_DROP.duration));
     g.position.copy(CONTAINER_POS).setY(CONTAINER_POS.y + CONTAINER_DROP.height * (1 - drop));
@@ -106,8 +109,10 @@ export function HeroContainer() {
 
   return (
     <>
-      <group ref={group} visible={false} rotation-y={CONTAINER_YAW} scale={CONTAINER_SCALE}>
-        <primitive object={container} />
+      <group ref={group} rotation-y={CONTAINER_YAW} scale={CONTAINER_SCALE}>
+        <group ref={body} visible={false}>
+          <primitive object={container} />
+        </group>
         {/* Upper back corner (container-local units): the whale never passes close enough to blow out. */}
         <pointLight ref={light} position={[0, 0.66, -0.75]} color="#22d3ee" intensity={0} distance={6} decay={2} />
       </group>

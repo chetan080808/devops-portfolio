@@ -8,7 +8,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { createHeroMaskPass, updateHeroMask } from "./heroMaskPass";
-import { layerOverrides, passMaterials, postMaterials } from "./precompile";
+import { layerOverrides, passMaterials, postMaterials, sceneTarget } from "./precompile";
 import { HERO_SET_LAYER, WHALE_LAYER, createSilhouetteTarget, renderSilhouette, silhouetteMaterial } from "./whaleSilhouette";
 
 /**
@@ -60,14 +60,21 @@ export function Bloom({ strength = 0.45, radius = 0, threshold = 0.55 }: Props) 
     silhouette.setSize(Math.max(1, Math.round((size.width * dpr) / 2)), Math.max(1, Math.round((size.height * dpr) / 2)));
   }, [composer, silhouette, dpr, size.width, size.height]);
 
-  // Let the boot-time shader warm-up compile the passes' materials too (see precompile.ts).
+  // Let the boot-time shader warm-up compile the passes' materials too, each for the target it
+  // draws into (see precompile.ts): the scene renders into the composer's buffer, every pass but
+  // the last (the mask, drawn to the canvas) into a render target, the silhouette into its own.
   useEffect(() => {
-    const materials = composer.passes.flatMap(passMaterials);
-    materials.forEach((m) => postMaterials.add(m));
-    const override = { material: silhouetteMaterial, layer: WHALE_LAYER };
+    sceneTarget.current = composer.readBuffer;
+    const last = composer.passes.length - 1;
+    const materials = composer.passes.flatMap((pass, i) =>
+      passMaterials(pass).map((m) => [m, i === last ? null : composer.readBuffer] as const),
+    );
+    materials.forEach(([m, target]) => postMaterials.set(m, target));
+    const override = { material: silhouetteMaterial, layer: WHALE_LAYER, target: silhouette };
     layerOverrides.add(override);
     return () => {
-      materials.forEach((m) => postMaterials.delete(m));
+      if (sceneTarget.current === composer.readBuffer) sceneTarget.current = null;
+      materials.forEach(([m]) => postMaterials.delete(m));
       layerOverrides.delete(override);
       composer.dispose();
       silhouette.dispose();

@@ -92,15 +92,18 @@ export function Whale() {
   }, [swim, animations]);
 
   const group = useRef<Group>(null);
+  // Only the model is hidden until the doors open, never the group: the key light must count from
+  // the first frame (a light count that changes mid-intro recompiles every lit shader on screen).
+  const body = useRef<Group>(null);
   const keyLight = useRef<PointLight>(null);
   const controller = useRef<WhaleController | null>(null);
 
   useFrame((state, delta) => {
     const g = group.current;
-    if (!g) return;
+    if (!g || !body.current) return;
     const t = clock.time();
-    g.visible = t >= DOORS.start;
-    if (!g.visible) return;
+    body.current.visible = t >= DOORS.start;
+    if (!body.current.visible) return;
 
     // Progress along the path, then position + orientation from the curve.
     const u = power2InOut(span(t, WHALE_SWIM.start, WHALE_SWIM.duration));
@@ -165,8 +168,10 @@ export function Whale() {
   });
 
   return (
-    <group ref={group} visible={false}>
-      <primitive object={whale} />
+    <group ref={group}>
+      <group ref={body} visible={false}>
+        <primitive object={whale} />
+      </group>
       {/* Key light front-above the cargo deck (whale-local units): rakes across the minis'
           corrugated sides and doors. Off while the whale is small/inside the container. */}
       <pointLight ref={keyLight} position={[0.55, 0.95, 0.75]} intensity={0} distance={3} decay={2} color="#e6ecff" />
