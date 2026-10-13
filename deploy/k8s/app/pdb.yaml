@@ -1,0 +1,10 @@
+# Voluntary disruptions (node drain, k3s upgrade) keep at least one pod serving.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portfolio
+  namespace: portfolio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: portfolio }

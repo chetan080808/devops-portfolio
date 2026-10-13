@@ -1,0 +1,12 @@
+# Dry run against Let's Encrypt STAGING (untrusted cert, separate secret). Proves DNS, port 80
+# and the HTTP-01 route before spending production rate limits. Deleted once it's Ready.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: chetannamane-com-staging
+  namespace: portfolio
+spec:
+  secretName: chetannamane-com-tls-staging
+  dnsNames: [chetannamane.com, www.chetannamane.com]
+  issuerRef: { kind: ClusterIssuer, name: letsencrypt-staging }
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }

@@ -1,0 +1,11 @@
+# The real certificate for both names. cert-manager renews it ~30 days before expiry.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: chetannamane-com
+  namespace: portfolio
+spec:
+  secretName: chetannamane-com-tls # used by the portfolio-https Ingress
+  dnsNames: [chetannamane.com, www.chetannamane.com]
+  issuerRef: { kind: ClusterIssuer, name: letsencrypt-prod }
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }

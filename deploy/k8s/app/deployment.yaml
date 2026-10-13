@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio
+  namespace: portfolio
+  labels: { app.kubernetes.io/name: portfolio }
+spec:
+  # No `replicas`: the HPA owns the count (min 2), so a re-apply never resets it.
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: { app.kubernetes.io/name: portfolio }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0 # a new pod must be ready before an old one goes
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: portfolio }
+    spec:
+      automountServiceAccountToken: false # the app never talks to the Kubernetes API
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # the image's `node` user
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: web
+          image: ghcr.io/chetan080808/devops-portfolio # tag set by kustomization (commit SHA)
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 3000 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          # Measured locally: ~57 MiB idle, ~60 MiB after 60 page + OG requests.
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 256Mi } # no CPU limit: throttling hurts latency more than it protects
+          startupProbe:
+            httpGet: { path: /api/healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            # Keep serving for a moment after removal from the Service, while Traefik catches up.
+            preStop:
+              sleep: { seconds: 5 }
+          volumeMounts:
+            - { name: next-cache, mountPath: /app/.next/cache } # ISR / OG revalidation
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: next-cache
+          emptyDir: { sizeLimit: 128Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

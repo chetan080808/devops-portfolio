@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - middlewares.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
+images:
+  - name: ghcr.io/chetan080808/devops-portfolio
+    newTag: unset # deploy sets the commit SHA: scripts/k8s-apply.sh app <sha>

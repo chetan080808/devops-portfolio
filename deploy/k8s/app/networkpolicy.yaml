@@ -1,0 +1,20 @@
+# Only Traefik (kube-system) and the kubelet's probes may reach the site's pods, and only on the
+# app port. Applies to the app pods only, so cert-manager's challenge solver pods in this namespace
+# stay reachable. (k3s enforces NetworkPolicy with its embedded kube-router.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: portfolio-ingress
+  namespace: portfolio
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: portfolio }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: traefik }
+      ports:
+        - { protocol: TCP, port: 3000 }

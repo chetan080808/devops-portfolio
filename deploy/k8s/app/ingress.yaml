@@ -1,0 +1,61 @@
+# Two routers on Traefik: HTTPS serves the site, HTTP only redirects. cert-manager's HTTP-01
+# challenge creates its own, more specific route (/.well-known/acme-challenge/<token>), which
+# Traefik prefers over these host-only rules, so validation is never redirected.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio-https
+  namespace: portfolio
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      portfolio-www-to-apex@kubernetescrd,portfolio-security-headers@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [chetannamane.com, www.chetannamane.com]
+      secretName: chetannamane-com-tls # created by the Certificate in deploy/k8s/tls/
+  rules:
+    - host: chetannamane.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: portfolio, port: { name: http } }
+    - host: www.chetannamane.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: portfolio, port: { name: http } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio-http
+  namespace: portfolio
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    # www first (straight to https://apex in one hop), then any other host to HTTPS.
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      portfolio-www-to-apex@kubernetescrd,portfolio-https-redirect@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: chetannamane.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: portfolio, port: { name: http } }
+    - host: www.chetannamane.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: portfolio, port: { name: http } }
