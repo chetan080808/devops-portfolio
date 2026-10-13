@@ -56,7 +56,7 @@ if [ "$verb" = "apply" ] && grep -q '^kind: Deployment' <<'__MANIFESTS__'
 $manifests
 __MANIFESTS__
 then
-  k3s kubectl -n portfolio rollout status deploy/portfolio --timeout=180s
+  k3s kubectl -n portfolio rollout status deploy/portfolio --timeout=420s # a cold image pull took ~3 min 20 s (7c)
 fi
 EOF
 )
@@ -70,7 +70,7 @@ params_native=$(command -v cygpath >/dev/null && cygpath -m "$params" || echo "$
 "$py" -c '
 import json, sys
 with open(sys.argv[2], "w") as f:
-    json.dump({"commands": ["echo %s | base64 -d | bash" % sys.argv[1]], "executionTimeout": ["300"]}, f)
+    json.dump({"commands": ["echo %s | base64 -d | bash" % sys.argv[1]], "executionTimeout": ["540"]}, f)
 ' "$b64" "$params_native"
 params_uri="file://$params_native"
 
@@ -79,8 +79,8 @@ cmd=$(aws ssm send-command --region "$region" --instance-ids "$instance" \
   --document-name AWS-RunShellScript --comment "k8s-apply $(basename "$target")" \
   --parameters "$params_uri" --query Command.CommandId --output text)
 
-# `aws ssm wait command-executed` gives up after 100 s; poll for up to 6 minutes instead.
-for _ in $(seq 1 72); do
+# `aws ssm wait command-executed` gives up after 100 s; poll for up to 9 minutes instead.
+for _ in $(seq 1 108); do
   status=$(aws ssm get-command-invocation --region "$region" --command-id "$cmd" \
     --instance-id "$instance" --query Status --output text 2>/dev/null || echo Pending)
   case $status in Success | Failed | TimedOut | Cancelled) break ;; esac
