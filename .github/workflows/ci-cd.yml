@@ -1,0 +1,145 @@
+# CI/CD: lint → build → Trivy scan → push → deploy → smoke test.
+#
+# - Pull requests run lint, build and the scan only (nothing is pushed or deployed).
+# - Pushes to main also push the image (tagged with the full commit SHA) and deploy it.
+# - Deploy runs in the GitHub environment "production" (deployment branch rule: main only) and
+#   gets short-lived AWS credentials through OIDC: no AWS keys are stored in GitHub. It applies
+#   the manifests on the k3s node through SSM (scripts/k8s-apply.sh); the Kubernetes API is never
+#   exposed. Until the repository variable AWS_DEPLOY_ROLE_ARN exists, the deploy job is skipped.
+# - Every third-party action is pinned to a full commit SHA (tags can be moved).
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "infra/**", "**/*.md"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One pipeline per branch; on main never cancel a run halfway (it may be deploying).
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  IMAGE: ghcr.io/chetan080808/devops-portfolio # GHCR names must be lowercase
+  NODE_VERSION: "24.21.0" # same as the Dockerfile's base image
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint src
+
+  build:
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build metadata
+        id: meta
+        run: echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      # Build into the local Docker daemon first: the image that gets scanned is the image that
+      # gets pushed (docker push below), not a rebuild.
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ steps.meta.outputs.build_time }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Trivy scan (fail on fixable HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.74.0
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: env.PUBLISH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        if: env.PUBLISH == 'true'
+        run: docker push "$IMAGE:$GITHUB_SHA"
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://chetannamane.com
+    permissions:
+      contents: read
+      id-token: write # request the OIDC token that AWS exchanges for the deploy role
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: gha-${{ github.run_id }}
+          aws-region: ap-south-1
+
+      - name: Deploy to k3s (via SSM)
+        run: scripts/k8s-apply.sh deploy/k8s/app "$GITHUB_SHA"
+
+      # The page names its build in every asset URL (?dpl=<sha>): this proves the new release is
+      # what visitors get, not just that some pod answers.
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 12); do
+            if curl -fsS --max-time 10 https://chetannamane.com/api/healthz >/dev/null \
+               && curl -fsS --max-time 10 https://chetannamane.com/ | grep -q "dpl=$GITHUB_SHA"; then
+              echo "live: $GITHUB_SHA"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::https://chetannamane.com does not serve $GITHUB_SHA"; exit 1
