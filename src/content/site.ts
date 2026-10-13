@@ -9,7 +9,7 @@ import type { SiteContent } from "@/types/content";
 
 export const site: SiteContent = {
   meta: {
-    siteUrl: "https://example.com", // TODO: your production domain (Phase 7)
+    siteUrl: "https://chetannamane.com",
     title: "Chetan Namane — DevOps Engineer · AWS & AI",
     description:
       "Chetan Namane, DevOps engineer with ~3 years of building and operating AWS infrastructure, CI/CD pipelines and containerized workloads in production. Scroll to watch the deployment.",
