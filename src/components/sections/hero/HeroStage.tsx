@@ -52,6 +52,12 @@ function canAutoLoad3d() {
   return true;
 }
 
+/**
+ * When capable phones start the 3D. Its start-up (code evaluation, WebGL context, environment map)
+ * has synchronous steps, so it must not start mid-scroll: see DECISIONS (mobile 3D auto-load).
+ */
+const AUTO_3D = { delayMs: 5000, quietMs: 800, onInteraction: false };
+
 const noSubscribe = () => () => {};
 /** null during SSR + hydration; then fixed for the page's life. */
 const useAutoCapable = () => useSyncExternalStore(noSubscribe, canAutoLoad3d, () => null);
@@ -82,22 +88,41 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
   const show3d = (phone === false || want3d) && !failed;
   useEffect(() => {
     if (phone !== true || autoCapable !== true) return;
-    // After the page has loaded and gone idle: the text is already up, the 3D fades in later.
-    let idle = 0;
+    // Text and still are up at once; the 3D starts AUTO_3D.delayMs after load, at a quiet moment
+    // (no touch / scroll for AUTO_3D.quietMs, so its start-up never lands mid-scroll), or on the
+    // first interaction if AUTO_3D.onInteraction.
     let timer = 0;
-    const go = () => setWant3d(true);
-    // Safari has no requestIdleCallback (the DOM types assume it always exists).
-    const ric = window.requestIdleCallback as Window["requestIdleCallback"] | undefined;
-    const schedule = () => {
-      if (ric) idle = ric(go, { timeout: 2500 });
-      else timer = window.setTimeout(go, 1200);
+    let idle = 0;
+    let started = false;
+    let lastInput = 0;
+    const ric = window.requestIdleCallback as Window["requestIdleCallback"] | undefined; // none in Safari
+    const start = () => {
+      if (started) return;
+      started = true;
+      removeInput();
+      if (ric) idle = ric(() => setWant3d(true), { timeout: 1000 });
+      else setWant3d(true);
     };
-    if (document.readyState === "complete") schedule();
-    else window.addEventListener("load", schedule, { once: true });
+    const onInput = () => {
+      lastInput = performance.now();
+      if (AUTO_3D.onInteraction) start();
+    };
+    const whenQuiet = () => {
+      const since = performance.now() - lastInput;
+      if (since < AUTO_3D.quietMs) timer = window.setTimeout(whenQuiet, AUTO_3D.quietMs - since);
+      else start();
+    };
+    const afterLoad = () => (timer = window.setTimeout(whenQuiet, AUTO_3D.delayMs));
+    const inputs = ["touchstart", "scroll", "wheel", "keydown"] as const;
+    inputs.forEach((e) => window.addEventListener(e, onInput, { passive: true }));
+    const removeInput = () => inputs.forEach((e) => window.removeEventListener(e, onInput));
+    if (document.readyState === "complete") afterLoad();
+    else window.addEventListener("load", afterLoad, { once: true });
     return () => {
-      window.removeEventListener("load", schedule);
-      if (idle) window.cancelIdleCallback?.(idle);
+      removeInput();
+      window.removeEventListener("load", afterLoad);
       window.clearTimeout(timer);
+      if (idle) window.cancelIdleCallback?.(idle);
     };
   }, [phone, autoCapable]);
   useEffect(() => {
