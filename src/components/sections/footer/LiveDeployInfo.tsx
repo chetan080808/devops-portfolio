@@ -49,7 +49,8 @@ export function LiveDeployInfo() {
       <LiveCell label="image" busy={pending}>
         {tag ? (
           <span className="truncate text-fg" title={info?.image ?? undefined}>
-            {`devops-portfolio:${tag.slice(0, 7)}`}
+            {/* The tag is the informative part (the label already says "image"); full ref on hover. */}
+            {`:${tag.slice(0, 7)}`}
           </span>
         ) : (
           <span className="text-faint">{missing}</span>
