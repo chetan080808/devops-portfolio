@@ -427,3 +427,21 @@ Updated after every checkpoint.
   previous release. Blocking force pushes protects the rewritten public history.
 - **Revisit when:** someone else contributes, or work moves to pull requests; then require `lint`
   and `build` and a pull request before merging.
+
+### D-40 Boot on slow phones: CSS-timed log, a safety net, and a real exit transition
+
+- **Context:** at 4× CPU throttling the boot screen sat 10–18 s with an empty log: every line
+  waited for React to hydrate. The old exit was a plain fade.
+- **Options:** keep the React timeline and accept the wait; render the fixed lines on a CSS clock
+  from first paint; skip the boot on slow devices.
+- **Choice:** the command and the four fixed log lines are CSS-timed from first paint; React only
+  adds the `[ OK ]` lines (and waits until the last CSS line is visible, so nothing jumps ahead).
+  The pre-paint gate script plays the exit itself if React hasn't taken over 4.5 s after first
+  paint. The exit is a transform/opacity transition: **doors** (two halves swing open, default) or
+  **crt** (collapse to a line, then a dot) via `?transition=`; reduced motion fades, Skip fades
+  fast. The 3D render loop starts only after the exit, so the exit has the GPU to itself.
+- **Measured (local prod build, 390 px):** 1× CPU boot ends at ~2.0 s, exit 640 ms; 4× CPU all
+  lines visible by ~2.7 s, the safety net exits at 4.9 s (was 10–18 s). Desktop 1280: exit
+  623–645 ms in 5 of 7 runs; 2 runs had one long frame (150 / 868 ms), the known cold-start freeze
+  (D-34) landing in the exit.
+- **Open:** user picks doors or crt; the other variant is then removed.
