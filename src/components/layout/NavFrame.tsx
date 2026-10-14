@@ -26,7 +26,8 @@ export function NavFrame({ children }: { children: ReactNode }) {
         // Phones: a full-width bar from the very top, including the safe area (notch / status bar).
         "max-md:box-content max-md:rounded-none max-md:border-x-0 max-md:border-t-0 max-md:pt-[env(safe-area-inset-top)]",
         "transition-[background,box-shadow,border-color] duration-300",
-        // Attribute selector outranks the glass utility's own background / backdrop-filter.
+        // Attribute selector outranks the glass utility's background; the blur is the navbar's own
+        // (panels have none, D-46): one element, so it stays cheap.
         "data-[scrolled=yes]:border-line-strong data-[scrolled=yes]:[background:rgb(5_7_13/0.9)]",
         "data-[scrolled=yes]:[backdrop-filter:blur(24px)_saturate(160%)] data-[scrolled=yes]:[-webkit-backdrop-filter:blur(24px)_saturate(160%)]",
         "data-[scrolled=yes]:shadow-[0_12px_32px_-16px_rgb(0_0_0/0.9)]",

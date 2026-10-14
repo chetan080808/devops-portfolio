@@ -85,12 +85,15 @@
 }
 
 /* ───────────── Reusable utilities ───────────── */
+/* Panels: a tinted, slightly translucent surface, NO backdrop blur. Behind every panel is the
+   fixed, always-moving background (drifting grid, particles), so a blur had to be recomputed for
+   every visible panel on every frame: desktop scroll 40–42 fps with it, 51–58 fps without (A/B,
+   D-46). Over the near-black page the blur was barely visible; the tint is a bit denser instead.
+   The navbar adds its own blur once scrolled (NavFrame): one element, worth it. If a blur is ever
+   needed again, write the prefixed property first: the minifier keeps only the LAST of the pair. */
 @utility glass {
-  background: linear-gradient(180deg, rgb(20 27 44 / 0.6), rgb(10 14 24 / 0.55));
+  background: linear-gradient(180deg, rgb(20 27 44 / 0.78), rgb(10 14 24 / 0.74));
   border: 1px solid var(--color-line);
-  /* Prefixed first: the CSS minifier keeps only the LAST of the pair, and Chrome ignores the prefix. */
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  backdrop-filter: blur(14px) saturate(140%);
 }
 
 @utility glow-edge {
