@@ -62,6 +62,14 @@ const noSubscribe = () => () => {};
 /** null during SSR + hydration; then fixed for the page's life. */
 const useAutoCapable = () => useSyncExternalStore(noSubscribe, canAutoLoad3d, () => null);
 
+/**
+ * Did the boot screen run when the page hydrated? Read once and kept: the attribute moves on to
+ * "leaving" / "done" later. If the gate's safety net already ended it, this is false.
+ */
+let bootRanAtStart: boolean | undefined;
+const readBootRan = () => (bootRanAtStart ??= document.documentElement.dataset.boot === "run");
+const useBootRan = () => useSyncExternalStore(noSubscribe, readBootRan, () => null);
+
 // three + R3F + scene code live in their own chunk, fetched on the client only.
 const HeroCanvas = dynamic(() => import("@/components/three/HeroCanvas"), { ssr: false });
 
@@ -84,10 +92,16 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
   const [want3d, setWant3d] = useState(false);
   // null until known (client only): capable phones load the 3D themselves, no button.
   const autoCapable = useAutoCapable();
-  const staticHero = phone === true && !want3d;
-  const show3d = (phone === false || want3d) && !failed;
+  // Capable phone with the boot running: the 3D loads during the boot, which waits for it (up to
+  // the phone cap, useBootTimeline) and ends straight into the intro. Otherwise (boot skipped or
+  // cut short) the still shows first and the 3D comes in later, settled.
+  const bootRan = useBootRan();
+  const loadInBoot = phone === true && autoCapable === true && bootRan === true;
+  const want = want3d || loadInBoot;
+  const staticHero = phone === true && !want;
+  const show3d = (phone === false || want) && !failed;
   useEffect(() => {
-    if (phone !== true || autoCapable !== true) return;
+    if (phone !== true || autoCapable !== true || bootRan !== false) return;
     // Text and still are up at once; the 3D starts AUTO_3D.delayMs after load, at a quiet moment
     // (no touch / scroll for AUTO_3D.quietMs, so its start-up never lands mid-scroll), or on the
     // first interaction if AUTO_3D.onInteraction.
@@ -124,10 +138,16 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
       window.clearTimeout(timer);
       if (idle) window.cancelIdleCallback?.(idle);
     };
-  }, [phone, autoCapable]);
+  }, [phone, autoCapable, bootRan]);
   useEffect(() => {
-    if (phone !== null) sceneStore.set({ deferred: staticHero, deferredAuto: autoCapable === true });
-  }, [phone, staticHero, autoCapable]);
+    if (phone !== null) sceneStore.set({ deferred: staticHero, deferredAuto: autoCapable === true, bootWaits3d: loadInBoot });
+  }, [phone, staticHero, autoCapable, loadInBoot]);
+  // Phones: the boot ended before the 3D was ready (cap hit, or no boot), so the still is on
+  // screen. The 3D then replaces it in the settled pose instead of replaying the intro over it.
+  const bootDone = useSceneState((s) => s.bootDone);
+  useEffect(() => {
+    if (phone === true && bootDone && !sceneStore.get().sceneReady) sceneStore.set({ introSettled: true });
+  }, [phone, bootDone]);
 
   // Stop the render loop while neither the hero nor Deployments (where the minis land) is visible.
   useEffect(() => {
@@ -208,7 +228,7 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
           >
             {down > 0
               ? `[ WARN ] ${nodes - down}/${nodes} nodes ready`
-              : want3d && !ready && !failed
+              : want && !ready && !failed
                 ? "pulling 3D layers…"
                 : !ready || clusterReady
                 ? `[ OK ] ${nodes}/${nodes} nodes ready`

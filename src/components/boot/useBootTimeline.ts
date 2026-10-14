@@ -14,6 +14,11 @@ export interface LogLine {
 const READY_HOLD = 380;
 /** Measured from first paint: stop waiting for assets; the scene fades in on its own once ready. */
 const CAP_MS = 2900;
+/**
+ * Phones that load the 3D during the boot wait for the whole warm-up (sceneReady), up to this
+ * (from first paint). Past it the still shows and the 3D comes in later, settled (HeroStage).
+ */
+const PHONE_CAP_MS = 8000;
 
 /**
  * Drives the boot log on a clock that starts at first paint (set by BootGate), so loading,
@@ -76,6 +81,8 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
             : "[ WARN ] WebGL unavailable — serving static build",
           "warn",
         );
+      } else if (sceneStore.get().bootWaits3d) {
+        push("[ OK ] hero ready · 3D streaming in", "ok");
       } else {
         push("[ WARN ] still pulling — continuing in background", "warn");
       }
@@ -89,7 +96,10 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
       const s = sceneStore.get();
       // Failure first: on a software-only GPU the files still download, but no 3D will follow.
       if (s.failed) finish("failed");
-      else if (s.sceneReady || assetsDownloaded(s)) finish("ready");
+      else if (s.sceneReady) finish("ready");
+      // Phones loading the 3D during the boot wait for the warm-up too (PHONE_CAP_MS).
+      else if (s.bootWaits3d) return;
+      else if (assetsDownloaded(s)) finish("ready");
       else if (s.deferred) finish("deferred");
     };
     const unsubscribe = sceneStore.subscribe(check);
@@ -104,10 +114,12 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
         if (capReached) finish("timeout");
       }),
     );
-    after(CAP_MS - now, () => {
+    const onCap = () => {
       capReached = true;
       if (pullingShown) finish("timeout");
-    });
+    };
+    // HeroStage decides bootWaits3d right after hydration; read it when the desktop cap comes up.
+    after(CAP_MS - now, () => (sceneStore.get().bootWaits3d ? after(PHONE_CAP_MS - elapsed(), onCap) : onCap()));
 
     return () => {
       cancelled = true;

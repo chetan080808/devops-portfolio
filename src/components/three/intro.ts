@@ -9,6 +9,9 @@ export const power2InOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2
 /** Normalized 0–1 progress of a tween that starts at `start` and lasts `duration` (seconds). */
 export const span = (t: number, start: number, duration: number) => clamp01((t - start) / duration);
 
+/** Intro time a settled start begins at: past every intro tween (same as reduced motion). */
+const SETTLED_START = 1e4;
+
 /** Longest step the intro advances in one frame (s). */
 const MAX_STEP = 1 / 20;
 
@@ -17,6 +20,8 @@ const MAX_STEP = 1 / 20;
  * by IntroTicker), capped per frame, so when rendering pauses — hero scrolled out of view,
  * background tab — the intro resumes where it left off instead of jumping ahead.
  * Starts after the boot overlay is gone; `skip` (reduced motion) renders the settled state.
+ * With `introSettled` (phones: the still was on screen) it starts at the end of the intro, so the
+ * 3D replaces the still in the same settled pose and the idle motion simply carries on.
  */
 export class IntroClock {
   private elapsed = 0;
@@ -29,13 +34,17 @@ export class IntroClock {
   }
 
   tick(delta: number) {
-    if (!this.started) this.started = sceneStore.get().bootDone;
+    if (!this.started) {
+      const { bootDone, introSettled } = sceneStore.get();
+      this.started = bootDone;
+      if (bootDone && introSettled) this.elapsed = SETTLED_START;
+    }
     if (this.started) this.elapsed += Math.min(delta, MAX_STEP);
   }
 
   /** Seconds of intro played so far; −1 while the boot overlay is still up. */
   time(): number {
-    if (this.skip) return 1e4;
+    if (this.skip) return SETTLED_START;
     return this.started ? this.elapsed : -1;
   }
 }

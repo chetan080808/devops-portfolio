@@ -19,6 +19,14 @@ export interface SceneState {
   deferred: boolean;
   /** …and it will load by itself once the page is idle (capable phone), vs only on request */
   deferredAuto: boolean;
+  /** Capable phone with the boot running: the 3D loads during the boot and the boot waits for it
+   *  (sceneReady, capped at PHONE_CAP_MS) instead of ending on the downloads */
+  bootWaits3d: boolean;
+  /** Shader warm-up steps done / planned (precompile.ts); 0 / 0 until it starts */
+  compileDone: number;
+  compileTotal: number;
+  /** The still was on screen after the boot: the 3D comes in already settled (no intro) */
+  introSettled: boolean;
   /** Boot overlay finished or skipped; the hero intro may start */
   bootDone: boolean;
   /** Hero intro: every node landed and linked */
@@ -36,6 +44,10 @@ let state: SceneState = {
   failReason: null,
   deferred: false,
   deferredAuto: false,
+  bootWaits3d: false,
+  compileDone: 0,
+  compileTotal: 0,
+  introSettled: false,
   bootDone: false,
   clusterReady: false,
   progress: 0,
@@ -66,10 +78,19 @@ export const loadProgress = (s: SceneState) => s.progress;
  */
 export const assetsDownloaded = (s: SceneState) => s.chunkLoaded && s.assetsTotal > 0 && s.assetsLoaded >= s.assetsTotal;
 
-/** Chunk download counts for 20%, model files for the other 80%. */
+/**
+ * Chunk download counts for 20%, model files for the other 80%. When the boot waits for the 3D
+ * (phones), the shader warm-up is part of it: chunk 15%, models 45%, warm-up 40%.
+ */
 function computeProgress(s: SceneState): number {
-  if (s.sceneReady || s.deferred || assetsDownloaded(s)) return 1;
-  if (!s.chunkLoaded) return 0;
+  if (s.sceneReady) return 1;
   const assets = s.assetsTotal > 0 ? s.assetsLoaded / s.assetsTotal : 0;
+  if (s.bootWaits3d) {
+    if (!s.chunkLoaded) return 0;
+    if (!assetsDownloaded(s)) return 0.15 + 0.45 * assets;
+    return 0.6 + 0.4 * (s.compileTotal > 0 ? s.compileDone / s.compileTotal : 0);
+  }
+  if (s.deferred || assetsDownloaded(s)) return 1;
+  if (!s.chunkLoaded) return 0;
   return 0.2 + 0.8 * assets;
 }

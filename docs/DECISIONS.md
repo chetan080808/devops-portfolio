@@ -445,3 +445,26 @@ Updated after every checkpoint.
   623–645 ms in 5 of 7 runs; 2 runs had one long frame (150 / 868 ms), the known cold-start freeze
   (D-34) landing in the exit.
 - **Open:** user picks doors or crt; the other variant is then removed.
+
+### D-41 Phones: the 3D loads during the boot (replaces "5 s after load")
+
+- **Context:** since ecd983e capable phones ended the boot at once on the still and started the
+  3D 5 s after load at a quiet moment; the intro then played over the still, late. The owner
+  wants the phone to feel like the desktop: boot, then the intro.
+- **Choice:** capable phones (≥ 4 GB / 4 cores, no Save-Data / 2G) with the boot running load
+  the 3D at hydration; the boot waits for the whole warm-up (`sceneReady`), hard limit 8 s from
+  first paint, then the intro plays right after the exit. Past the limit (or Skip, or no boot) the
+  still shows and the 3D replaces it later in the settled pose (`introSettled`: the intro clock
+  starts at its end), never replaying the intro. The boot stays visibly alive: the live line
+  goes `pulling … n/4 layers` → `compiling shaders n%`, the progress bar includes the warm-up
+  (chunk 15 / models 45 / shaders 40 %), and a compositor-only sweep + cursor keep moving while
+  the main thread is busy. Boot-skipped visits keep the old 5 s / quiet-moment start.
+- **Measured (local prod build, CDP phone 390×844, deviceMemory 8, 8 cores):**
+  - 1× CPU: boot ends 5.6 s after first paint, intro 57 fps (one 150 ms frame).
+  - 2× CPU: 5.5–6.2 s, intro 56 fps (one 184–217 ms frame at its start).
+  - 4× CPU: the 8 s limit always hits (exit at ~8.6 s); 3D swaps in settled at 11.6–15.8 s.
+  - Mobile Lighthouse: 48–62 Perf (TBT 4.3–8.7 s, LCP 3.3–6.1 s) vs 72–87 with the old flow
+    (live ee8331b: TBT 0.3–0.7 s); A11y / BP / SEO 100 both. The cost is the 3D start-up
+    inside Lighthouse's window (4× CPU), as measured for the rejected first-interaction trigger.
+- **Trade-off accepted by the owner:** a lower mobile Lighthouse score for the intro on phones.
+  Revert = `bootWaits3d` false (HeroStage `loadInBoot`).

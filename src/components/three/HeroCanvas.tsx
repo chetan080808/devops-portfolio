@@ -98,7 +98,15 @@ function ReadySignal({ onWarm }: { onWarm: (warm: true) => void }) {
   useEffect(() => {
     let cancelled = false;
     let raf = 0;
-    precompile(gl, scene, camera, () => cancelled)
+    // Progress for the boot (phones wait for the warm-up); only whole-percent changes are published.
+    let shown = -1;
+    const onProgress = (done: number, total: number) => {
+      const pct = total > 0 ? Math.floor((done / total) * 100) : 0;
+      if (pct === shown) return;
+      shown = pct;
+      sceneStore.set({ compileDone: done, compileTotal: total });
+    };
+    precompile(gl, scene, camera, () => cancelled, onProgress)
       .catch((err) => console.warn("[scene] shader warm-up failed, compiling on first draw", err))
       .finally(() => {
         if (cancelled) return;

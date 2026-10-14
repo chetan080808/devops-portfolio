@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 import { site } from "@/content/site";
-import { loadProgress, sceneStore } from "@/lib/sceneStore";
+import { assetsDownloaded, loadProgress, sceneStore } from "@/lib/sceneStore";
 import { useSceneState } from "@/hooks/useSceneState";
 import { BOOT_SEEN_KEY } from "./BootGate";
 import { CHAR_MS, EXIT_MS, TYPE_DELAY_MS, lineDelayMs } from "./constants";
@@ -198,14 +198,18 @@ function Screen({ command, log, pulling, onSkip }: { command: string; log: LogLi
   );
 }
 
+/** The live line: pulling the files, then (phones, which wait for it) warming up the shaders. */
 function PullLine() {
   const loaded = useSceneState((s) => s.assetsLoaded);
   const total = useSceneState((s) => s.assetsTotal);
+  const compiling = useSceneState((s) => s.bootWaits3d && assetsDownloaded(s));
+  const compiled = useSceneState((s) => (s.compileTotal > 0 ? Math.round((s.compileDone / s.compileTotal) * 100) : 0));
   return (
     <p className="text-muted">
-      pulling image portfolio:latest{" "}
-      <span className="text-faint">{total > 0 ? `${loaded}/${total} layers` : "resolving…"}</span>
-      <span className="ml-1 inline-block animate-blink text-cyan">▍</span>
+      {compiling ? "compiling shaders " : "pulling image portfolio:latest "}
+      <span className="text-faint">{compiling ? `${compiled}%` : total > 0 ? `${loaded}/${total} layers` : "resolving…"}</span>
+      {/* opacity, not visibility: it keeps blinking while the main thread is busy (compositor) */}
+      <span className="ml-1 inline-block animate-boot-blink text-cyan">▍</span>
     </p>
   );
 }
@@ -224,12 +228,17 @@ function ProgressBar() {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-        className="h-px w-full bg-line-strong"
+        className="relative h-px w-full overflow-hidden bg-line-strong"
       >
         <div
           className="h-full origin-left bg-cyan shadow-[0_0_8px_rgb(34_211_238/0.8)] transition-transform duration-300 ease-premium"
           style={{ transform: `scaleX(${pct / 100})` }}
         />
+        {/* Activity sweep (transform only, runs on the compositor): the boot never looks frozen,
+            even while a throttled phone's main thread is busy compiling shaders */}
+        {pct < 100 && (
+          <span className="absolute inset-y-0 left-0 w-1/5 animate-boot-scan bg-linear-to-r from-transparent via-cyan/70 to-transparent" />
+        )}
       </div>
     </div>
   );

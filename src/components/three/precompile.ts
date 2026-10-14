@@ -70,37 +70,62 @@ function compileFor(gl: WebGLRenderer, target: WebGLRenderTarget | null, object:
   }
 }
 
+function drawablesOf(root: Object3D) {
+  const drawables: Object3D[] = [];
+  root.traverse((o) => {
+    const d = o as Mesh;
+    if (d.material && (d.isMesh || (o as { isPoints?: boolean }).isPoints || (o as { isLine?: boolean }).isLine)) drawables.push(o);
+  });
+  return drawables;
+}
+
 async function compileEach(
   gl: WebGLRenderer,
   root: Object3D,
   camera: Camera,
   target: WebGLRenderTarget | null,
   isCancelled: () => boolean,
+  step: () => void,
 ) {
-  const drawables: Object3D[] = [];
-  root.traverse((o) => {
-    const d = o as Mesh;
-    if (d.material && (d.isMesh || (o as { isPoints?: boolean }).isPoints || (o as { isLine?: boolean }).isLine)) drawables.push(o);
-  });
-  for (const object of drawables) {
+  for (const object of drawablesOf(root)) {
     if (isCancelled()) return;
     // `object` is compiled against `root`'s lights (the program depends on them).
     await compileFor(gl, target, object, camera, root as Scene);
+    step();
     await maybeYield();
   }
 }
 
-export async function precompile(gl: WebGLRenderer, scene: Scene, camera: Camera, isCancelled: () => boolean) {
-  await compileEach(gl, scene, camera, sceneTarget.current, isCancelled);
-  for (const extra of extraScenes) await compileEach(gl, extra, camera, null, isCancelled);
+/** Meshes the override material is compiled against (only its layer enabled). */
+function layerTargets(scene: Scene, layer: number) {
+  const targets: Mesh[] = [];
+  scene.traverse((o) => {
+    if ((o as Mesh).isMesh && o.layers.isEnabled(layer)) targets.push(o as Mesh);
+  });
+  return targets;
+}
+
+/** `onProgress(done, total)` after every step (one object x target); the boot shows it on phones. */
+export async function precompile(
+  gl: WebGLRenderer,
+  scene: Scene,
+  camera: Camera,
+  isCancelled: () => boolean,
+  onProgress: (done: number, total: number) => void = () => {},
+) {
+  let total = drawablesOf(scene).length + postMaterials.size;
+  for (const extra of extraScenes) total += drawablesOf(extra).length;
+  for (const { layer } of layerOverrides) total += layerTargets(scene, layer).length;
+  let done = 0;
+  const step = () => onProgress(++done, total);
+  onProgress(0, total);
+
+  await compileEach(gl, scene, camera, sceneTarget.current, isCancelled, step);
+  for (const extra of extraScenes) await compileEach(gl, extra, camera, null, isCancelled, step);
 
   // Override passes: compile the override against each object on its layer (skinned or not).
   for (const { material, layer, target } of layerOverrides) {
-    const targets: Mesh[] = [];
-    scene.traverse((o) => {
-      if ((o as Mesh).isMesh && o.layers.isEnabled(layer)) targets.push(o as Mesh);
-    });
-    for (const mesh of targets) {
+    for (const mesh of layerTargets(scene, layer)) {
       if (isCancelled()) return;
       const own = mesh.material;
       const layers = camera.layers.mask;
@@ -114,6 +139,7 @@ export async function precompile(gl: WebGLRenderer, scene: Scene, camera: Camera
         mesh.material = own;
         camera.layers.mask = layers;
       }
+      step();
       await maybeYield();
     }
   }
@@ -128,6 +154,7 @@ export async function precompile(gl: WebGLRenderer, scene: Scene, camera: Camera
     quadScene.add(quad);
     await compileFor(gl, target, quad, quadCamera, quadScene);
     quadScene.remove(quad);
+    step();
     await maybeYield();
   }
   geometry.dispose();
