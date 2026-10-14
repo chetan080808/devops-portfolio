@@ -16,8 +16,8 @@ const CORNER = 12;
 /**
  * Blue Ocean stage graph. Desktop: lines in an SVG BEHIND the nodes, stopping at each node's edge;
  * a parallel branch forks off the main line after the previous stage into a second row (same
- * column as its stage) and rejoins before the next one, with rounded connectors. Mobile: a simple
- * vertical list with the branch indented.
+ * column as its stage) and rejoins before the next one, with rounded connectors. Mobile: a vertical
+ * list with the branch indented, run row by row while scrolling (PipelineScroll).
  */
 export function StageGraph({ stages, onOpen }: { stages: PipelineStage[]; onOpen: (s: PipelineStage) => void }) {
   const main = stages.filter((s) => !s.parallelTo);
@@ -90,13 +90,18 @@ export function StageGraph({ stages, onOpen }: { stages: PipelineStage[]; onOpen
           })}
       </div>
 
-      {/* Mobile */}
-      <ol className="relative space-y-4 px-5 py-5 md:hidden">
-        <span aria-hidden="true" className="absolute top-8 bottom-8 left-[2.15rem] w-0.5 bg-[#5b6478]" />
+      {/* Mobile: PipelineScroll runs the stages as each row crosses a reading line and grows the
+          green fill down the rail (transform only); server HTML / reduced motion = final state,
+          rail fully green. */}
+      <ol data-run-list className="relative space-y-3 px-4 py-4 md:hidden">
+        {/* Rail through the node centres; PipelineScroll measures its exact top / height */}
+        <span data-run-rail aria-hidden="true" className="absolute top-8 bottom-8 left-[calc(1.875rem-1px)] w-0.5 bg-[#5b6478]">
+          <span data-run-fill className="absolute inset-0 origin-top bg-[#2fa84f]" />
+        </span>
         {main.map((stage) => {
           const branch = stages.find((s) => s.parallelTo === stage.id);
           return (
-            <li key={stage.id} className="relative space-y-3">
+            <li key={stage.id} data-run-row={stage.slot} className="relative space-y-2.5">
               <StageNode stage={stage} onOpen={onOpen} layout="row" />
               {branch && (
                 <div className="ml-10 flex items-center gap-2">

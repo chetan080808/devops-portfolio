@@ -1,11 +1,14 @@
+import type { CSSProperties } from "react";
 import type { Accent, DashboardPanel } from "@/types/content";
 import { accentHex, accentText } from "@/lib/accent";
 import { cn } from "@/lib/cn";
+import { BRAND_SPRITE, brandIcons } from "./brandIcons";
 import { PanelFrame } from "./PanelFrame";
 
 type PanelOf<K extends DashboardPanel["kind"]> = Extract<DashboardPanel, { kind: K }>;
 
-const wideClass = (wide?: boolean) => (wide ? "sm:col-span-2" : undefined);
+// Phones too: the grid is 2 columns from 0 px, so wide panels span both.
+const wideClass = (wide?: boolean) => (wide ? "col-span-2" : undefined);
 
 function formatValue(value: number, decimals = 0, suffix = "", prefix = "") {
   return `${prefix}${value.toFixed(decimals)}${suffix}`;
@@ -20,7 +23,7 @@ function BigValue({ value, decimals, prefix, suffix, accent }: {
   accent: Accent;
 }) {
   if (value === null) {
-    return <p className="font-mono text-lg text-faint">No data</p>;
+    return <p className="font-mono text-base text-faint sm:text-lg">No data</p>;
   }
   return (
     // Real values only: DashboardScroll counts these up from 0 (the server HTML is the final value).
@@ -30,7 +33,7 @@ function BigValue({ value, decimals, prefix, suffix, accent }: {
       data-decimals={decimals ?? 0}
       data-prefix={prefix ?? ""}
       data-suffix={suffix ?? ""}
-      className={cn("font-mono text-4xl font-medium tracking-tight", accentText[accent])}
+      className={cn("font-mono text-[1.7rem] leading-tight font-medium tracking-tight sm:text-4xl", accentText[accent])}
     >
       {formatValue(value, decimals, suffix, prefix)}
     </p>
@@ -40,9 +43,9 @@ function BigValue({ value, decimals, prefix, suffix, accent }: {
 export function StatPanel({ panel }: { panel: PanelOf<"stat"> }) {
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
-      <div className="flex flex-1 flex-col justify-between gap-4">
+      <div className="flex flex-1 flex-col justify-between gap-3 sm:gap-4">
         <BigValue value={panel.value} decimals={panel.decimals} prefix={panel.prefix} suffix={panel.suffix} accent={panel.accent} />
-        <p className="font-mono text-[0.7rem] text-muted">{panel.caption}</p>
+        <p className="font-mono text-[0.66rem] leading-snug text-muted sm:text-[0.7rem]">{panel.caption}</p>
       </div>
     </PanelFrame>
   );
@@ -51,16 +54,16 @@ export function StatPanel({ panel }: { panel: PanelOf<"stat"> }) {
 export function TextPanel({ panel }: { panel: PanelOf<"text"> }) {
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
-      <div className="flex flex-1 flex-col justify-between gap-4">
-        <p className={cn("flex items-start gap-2 text-lg leading-snug font-medium", accentText[panel.accent])}>
+      <div className="flex flex-1 flex-col justify-between gap-3 sm:gap-4">
+        <p className={cn("flex items-start gap-2 text-[0.95rem] leading-snug font-medium sm:text-lg", accentText[panel.accent])}>
           <span
-            className="mt-2 size-1.5 shrink-0 rounded-full"
+            className="mt-[0.45rem] size-1.5 shrink-0 rounded-full sm:mt-2"
             style={{ backgroundColor: accentHex[panel.accent] }}
             aria-hidden="true"
           />
           {panel.headline}
         </p>
-        <p className="font-mono text-[0.7rem] text-muted">{panel.caption}</p>
+        <p className="font-mono text-[0.66rem] leading-snug text-muted sm:text-[0.7rem]">{panel.caption}</p>
       </div>
     </PanelFrame>
   );
@@ -83,9 +86,9 @@ export function SparklinePanel({ panel }: { panel: PanelOf<"sparkline"> }) {
 
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <BigValue value={panel.value} decimals={panel.decimals} prefix={panel.prefix} suffix={panel.suffix} accent={panel.accent} />
-        <p className="pb-1 text-right font-mono text-[0.7rem] text-muted">{panel.caption}</p>
+        <p className="pb-1 text-right font-mono text-[0.66rem] leading-snug text-muted sm:text-[0.7rem]">{panel.caption}</p>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-4 h-20 w-full" aria-hidden="true">
         <defs>
@@ -153,13 +156,13 @@ export function GaugePanel({ panel }: { panel: PanelOf<"gauge"> }) {
         <p
           className={cn(
             "absolute inset-x-0 bottom-0 text-center font-mono",
-            panel.value === null ? "text-sm text-faint" : cn("text-2xl", accentText[panel.accent]),
+            panel.value === null ? "text-sm text-faint" : cn("text-xl sm:text-2xl", accentText[panel.accent]),
           )}
         >
           {panel.value === null ? "No data" : `${panel.value}%`}
         </p>
       </div>
-      <p className="mt-3 text-center font-mono text-[0.7rem] text-muted">{panel.caption}</p>
+      <p className="mt-2 text-center font-mono sm:mt-3 text-[0.66rem] leading-snug text-muted sm:text-[0.7rem]">{panel.caption}</p>
     </PanelFrame>
   );
 }
@@ -186,22 +189,44 @@ export function ListPanel({ panel }: { panel: PanelOf<"list"> }) {
   );
 }
 
+/**
+ * Tool / service chip: the real logo as a monochrome icon (sprite symbol, tinted with the panel
+ * accent; its brand colour on hover), or a dot when neither icon set has it.
+ */
+function TagChip({ name, accent }: { name: string; accent: Accent }) {
+  const icon = brandIcons[name];
+  return (
+    <li
+      data-list-item
+      className="group/chip flex items-center gap-1.5 rounded-md border border-line-strong bg-white/[0.02] px-2 py-1 font-mono text-[0.7rem] text-fg"
+    >
+      {icon ? (
+        <svg
+          aria-hidden="true"
+          className={cn("size-3.5 shrink-0 fill-current transition-colors duration-200 group-hover/chip:text-(--brand)", accentText[accent])}
+          style={{ "--brand": `#${icon.hex}` } as CSSProperties}
+        >
+          <use href={`${BRAND_SPRITE}#${icon.id}`} />
+        </svg>
+      ) : (
+        <span className="flex size-3.5 shrink-0 items-center justify-center" aria-hidden="true">
+          <span className="size-1 rounded-full" style={{ backgroundColor: accentHex[accent] }} />
+        </span>
+      )}
+      {name}
+    </li>
+  );
+}
+
 export function TagsPanel({ panel }: { panel: PanelOf<"tags"> }) {
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
       <ul className="flex flex-wrap gap-1.5">
         {panel.items.map((item) => (
-          <li
-            key={item}
-            data-list-item
-            className="flex items-center gap-1.5 rounded-md border border-line-strong bg-white/[0.02] px-2 py-1 font-mono text-[0.7rem] text-fg"
-          >
-            <span className="size-1 rounded-full" style={{ backgroundColor: accentHex[panel.accent] }} aria-hidden="true" />
-            {item}
-          </li>
+          <TagChip key={item} name={item} accent={panel.accent} />
         ))}
       </ul>
-      {panel.caption && <p className="mt-4 font-mono text-[0.7rem] text-muted">{panel.caption}</p>}
+      {panel.caption && <p className="mt-3 font-mono text-[0.66rem] leading-snug text-muted sm:mt-4 sm:text-[0.7rem]">{panel.caption}</p>}
     </PanelFrame>
   );
 }

@@ -30,7 +30,7 @@ export function Dashboard() {
         Skills, reported like production metrics.
       </SectionHeader>
 
-      <div className="glass mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 font-mono text-xs">
+      <div className="glass mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl px-3 py-2 font-mono text-xs sm:mb-4 sm:px-4 sm:py-2.5">
         <p className="flex items-center gap-2 text-fg">
           <StatusDot accent="success" />
           skills / overview
@@ -41,7 +41,8 @@ export function Dashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 2 columns from phone width up (small panels pair up, wide ones span both), 4 from lg */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {site.dashboard.map((panel) => (
           <Panel key={panel.id} panel={panel} />
         ))}

@@ -481,3 +481,29 @@ Updated after every checkpoint.
 - **Why:** on the owner's phone the CRT exit is the smoother one, and the intro starts right
   after it with no still and no replay (D-41 confirmed on a real device). One variant = no
   duplicated screen in the DOM and no dead CSS.
+
+### D-43 M3 phones: pipeline runs by row, 2-column dashboard, real tool logos
+
+- **Context:** on phones the pipeline was a static list (final state; the run existed only on
+  desktop, pinned), the dashboard was one long column, and the sections had desktop spacing.
+- **Pipeline options:** pin + scrub like desktop; drive the run from where the rows are.
+- **Choice:** no pin on phones (a pin fights the mobile toolbar resize and traps the swipe). Stage i
+  starts running when its node crosses a reading line at 62% of the viewport and passes when the
+  next node crosses (`runAt` in PipelineScroll, interpolated between node centres); a green fill
+  grows down the rail with the same position (scaleY, compositor-only). Same `pipelineRun.t` +
+  `applyRun` as desktop, so header count, nodes and the (hidden) Stage View never disagree.
+  Reduced motion / no JS: final state, rail fully green.
+- **Dashboard:** 2 columns from 0 px (wide panels span both, 4 columns from lg); panels compact on
+  phones (smaller padding, numbers 1.7rem, captions 0.66rem). Tag chips show the real logo of each
+  tool / AWS service as a monochrome icon tinted with the panel accent, brand colour on hover; no
+  icon → dot. Owner decision: logos may show which tools are used; "no official logos" covers only
+  the site's own designs.
+- **Icon delivery options:** inline SVG paths (60 KB raw / 22 KB gzip, repeated in the HTML and the
+  RSC payload) vs one sprite. **Choice:** one cached sprite `public/icons/brands.svg` (22 KB gzip,
+  one request, outside the HTML), built by `scripts/icons/build-brand-icons.mjs` from Simple Icons
+  16.35.0 (pinned) and the official AWS Architecture Icons package (16 px glyph only). Credits in
+  ASSETS.md (Jenkins logo is CC BY-SA 3.0).
+- **Spacing (phones):** sections py-11 (was 14), header gap mb-7 (was 10), Jenkins header and
+  stage list padding reduced.
+- **Checked (local prod, CDP phone 360×780):** run states at 3 scroll positions (0/4 queued →
+  Build running → 2/4 passed, Deploy running), dashboard rows pair up, no horizontal overflow.
