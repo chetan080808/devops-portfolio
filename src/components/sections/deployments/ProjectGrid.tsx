@@ -60,6 +60,8 @@ export function ProjectGrid({ projects }: { projects: Project[] }) {
           // Phones: edge-to-edge swipe track with snap; scrollbar hidden (the dots show position).
           "max-md:-mx-4 max-md:flex max-md:snap-x max-md:snap-mandatory max-md:scroll-px-4 max-md:gap-3 max-md:overflow-x-auto max-md:overscroll-x-contain max-md:px-4 max-md:pb-1 max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
           "max-md:[&>article]:w-[84%] max-md:[&>article]:shrink-0 max-md:[&>article]:snap-center",
+          // Tablets (2 columns): an odd last card sits centred at card width, not alone on the left.
+          "md:max-lg:[&>article:last-child:nth-child(odd)]:col-span-2 md:max-lg:[&>article:last-child:nth-child(odd)]:w-[calc(50%-0.625rem)] md:max-lg:[&>article:last-child:nth-child(odd)]:justify-self-center",
         )}
       >
         {projects.map((project, i) => (

@@ -71,7 +71,7 @@ export const site: SiteContent = {
     {
       id: "car-rental-k8s",
       name: "Car Rental Portal on Kubernetes",
-      status: "Running",
+      status: "Completed",
       stack: ["PHP", "MySQL", "Docker", "Kubernetes", "AWS EC2", "GitHub Actions", "Trivy"],
       impact:
         "Containerized a PHP + MySQL app and deployed it to Kubernetes on AWS EC2, with a GitHub Actions CI/CD pipeline that scans images with Trivy.",
