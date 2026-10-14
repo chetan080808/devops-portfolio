@@ -3,9 +3,11 @@
 # - Pull requests run lint, build and the scan only (nothing is pushed or deployed).
 # - Pushes to main also push the image (tagged with the full commit SHA) and deploy it.
 # - Deploy runs in the GitHub environment "production" (deployment branch rule: main only) and
-#   gets short-lived AWS credentials through OIDC: no AWS keys are stored in GitHub. It applies
-#   the manifests on the k3s node through SSM (scripts/k8s-apply.sh); the Kubernetes API is never
-#   exposed. Until the repository variable AWS_DEPLOY_ROLE_ARN exists, the deploy job is skipped.
+#   gets short-lived AWS credentials through OIDC: no AWS keys are stored in GitHub. It sends the
+#   SSM deploy document to the k3s node with one parameter, the commit SHA (scripts/deploy-ssm.sh;
+#   the role can send nothing else); the node applies deploy/k8s/app from that commit of main.
+#   The Kubernetes API is never exposed. Until the repository variable AWS_DEPLOY_ROLE_ARN exists,
+#   the deploy job is skipped.
 # - Every third-party action is pinned to a full commit SHA (tags can be moved).
 name: ci-cd
 
@@ -134,8 +136,8 @@ jobs:
           role-session-name: gha-${{ github.run_id }}
           aws-region: ap-south-1
 
-      - name: Deploy to k3s (via SSM)
-        run: scripts/k8s-apply.sh deploy/k8s/app "$GITHUB_SHA"
+      - name: Deploy to k3s (SSM deploy document)
+        run: scripts/deploy-ssm.sh "$GITHUB_SHA"
 
       # The page names its build in every asset URL (?dpl=<sha>): this proves the new release is
       # what visitors get, not just that some pod answers.

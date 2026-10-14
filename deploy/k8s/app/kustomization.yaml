@@ -11,4 +11,4 @@ resources:
   - networkpolicy.yaml
 images:
   - name: ghcr.io/chetan080808/devops-portfolio
-    newTag: unset # deploy sets the commit SHA: scripts/k8s-apply.sh app <sha>
+    newTag: unset # deploy sets the commit SHA (SSM deploy document / scripts/k8s-apply.sh)

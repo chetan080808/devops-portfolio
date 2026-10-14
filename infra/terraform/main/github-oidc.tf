@@ -46,16 +46,17 @@ resource "aws_iam_role" "github_deploy" {
   max_session_duration = 3600
 }
 
-# Exactly what scripts/k8s-apply.sh calls, nothing else: find the node, run one command on it
-# with the AWS-RunShellScript document, read the result. No SSM sessions, no Terraform state,
-# no IAM, no other instance.
+# Exactly what scripts/deploy-ssm.sh calls, nothing else: find the node, send it the deploy
+# document (ssm-deploy.tf: fixed script, one commit-SHA parameter), read the result. Not
+# AWS-RunShellScript (any command as root), no SSM sessions, no Terraform state, no IAM, no
+# other instance or document.
 data "aws_iam_policy_document" "github_deploy" {
   statement {
-    sid     = "RunDeployCommandOnTheNode"
+    sid     = "SendTheDeployDocumentToTheNode"
     actions = ["ssm:SendCommand"]
     resources = [
       aws_instance.node.arn,
-      "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
+      aws_ssm_document.deploy.arn,
     ]
   }
 

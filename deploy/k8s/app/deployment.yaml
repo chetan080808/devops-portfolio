@@ -34,8 +34,9 @@ spec:
           ports:
             - { name: http, containerPort: 3000 }
           # Shown in the site footer (src/lib/buildInfo.ts). DEPLOY_IMAGE and DEPLOYED_AT are filled
-          # in by scripts/k8s-apply.sh (same substitution as the image tag); a new deploy time on
-          # every deploy also rolls the pods, so each deploy is a fresh, visible rollout.
+          # in by the deploy (SSM deploy document or scripts/k8s-apply.sh, same substitution as the
+          # image tag); a new deploy time on every deploy also rolls the pods, so each deploy is a
+          # fresh, visible rollout.
           env:
             - name: DEPLOY_IMAGE
               value: ghcr.io/chetan080808/devops-portfolio:unset
