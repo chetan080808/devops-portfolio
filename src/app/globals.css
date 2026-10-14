@@ -176,47 +176,10 @@
 }
 
 /* ───────────── Boot exit (html[data-boot=leaving]) ─────────────
-   Chosen by data-boot-transition (BootGate: ?transition=doors|crt; reduced motion → fade; Skip →
-   skip). Transform / opacity only; durations match EXIT_MS in boot/constants.ts. */
-html[data-boot="leaving"] #boot-overlay [data-boot-door],
+   data-boot-transition is set by BootGate: crt by default, fade with reduced motion, skip after
+   Skip. Transform / opacity only; durations match EXIT_MS in boot/constants.ts. */
 html[data-boot="leaving"] #boot-overlay [data-boot-screen] {
   will-change: transform, opacity;
-}
-
-/* Doors: the two halves swing open on hinges at the outer edges, towards the viewer. */
-html[data-boot="leaving"][data-boot-transition="doors"] [data-boot-door="left"] {
-  transform-origin: left center;
-  animation: boot-door-left 640ms cubic-bezier(0.55, 0.05, 0.6, 0.2) forwards;
-}
-html[data-boot="leaving"][data-boot-transition="doors"] [data-boot-door="right"] {
-  transform-origin: right center;
-  animation: boot-door-right 640ms cubic-bezier(0.55, 0.05, 0.6, 0.2) forwards;
-}
-@keyframes boot-door-left {
-  0% {
-    transform: rotateY(0deg);
-    opacity: 1;
-  }
-  75% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(-6%) rotateY(-96deg);
-    opacity: 0;
-  }
-}
-@keyframes boot-door-right {
-  0% {
-    transform: rotateY(0deg);
-    opacity: 1;
-  }
-  75% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(6%) rotateY(96deg);
-    opacity: 0;
-  }
 }
 
 /* CRT power-off: the screen collapses to a bright line, then a dot, then black, then the site. */

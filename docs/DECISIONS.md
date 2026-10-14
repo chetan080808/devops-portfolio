@@ -444,7 +444,7 @@ Updated after every checkpoint.
   lines visible by ~2.7 s, the safety net exits at 4.9 s (was 10–18 s). Desktop 1280: exit
   623–645 ms in 5 of 7 runs; 2 runs had one long frame (150 / 868 ms), the known cold-start freeze
   (D-34) landing in the exit.
-- **Open:** user picks doors or crt; the other variant is then removed.
+- **Resolved by D-42:** CRT power-off kept, doors removed.
 
 ### D-41 Phones: the 3D loads during the boot (replaces "5 s after load")
 
@@ -468,3 +468,16 @@ Updated after every checkpoint.
     inside Lighthouse's window (4× CPU), as measured for the rejected first-interaction trigger.
 - **Trade-off accepted by the owner:** a lower mobile Lighthouse score for the intro on phones.
   Revert = `bootWaits3d` false (HeroStage `loadInBoot`).
+
+### D-42 Boot exit: CRT power-off only
+
+- **Context:** D-40 shipped two exits behind `?transition=` (doors default, crt) for the owner to
+  compare on a real phone, together with the D-41 "boot until the 3D is ready" flow.
+- **Options:** doors (two halves swing open in 3D perspective); CRT power-off (the screen collapses
+  to a bright line, then a dot, then black, then the site); keep both behind the switch.
+- **Choice:** CRT only, now the default. Removed: the `?transition=` switch in the gate script,
+  the two door halves (the boot screen is rendered once again instead of twice), their keyframes
+  and the overlay perspective. Reduced motion still fades, Skip still fades fast.
+- **Why:** on the owner's phone the CRT exit is the smoother one, and the intro starts right
+  after it with no still and no replay (D-41 confirmed on a real device). One variant = no
+  duplicated screen in the DOM and no dead CSS.

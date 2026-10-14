@@ -22,8 +22,8 @@ const toneClass: Record<LogTone, string> = {
  * Full-screen `kubectl apply` intro. Progress is the real 3D asset download, capped at ~3.5 s.
  *
  * Exit: `html[data-boot=leaving]` + `data-boot-transition` play the reveal in CSS (globals.css):
- * "doors" (default) swings the two halves open like container doors, "crt" collapses the screen to
- * a line, a dot, then black; reduced motion fades, Skip fades fast. Transform / opacity only. The
+ * "crt" (CRT power-off) collapses the screen to a line, a dot, then black; reduced motion fades,
+ * Skip fades fast. Transform / opacity only. The
  * gate script can trigger the same exit on its own if hydration is slow (see BootGate).
  */
 export function BootSequence() {
@@ -57,7 +57,7 @@ export function BootSequence() {
         sceneStore.set({ bootDone: true });
         setGone(true);
       },
-      EXIT_MS[html.dataset.bootTransition ?? "doors"] ?? 650,
+      EXIT_MS[html.dataset.bootTransition ?? "crt"] ?? 650,
     );
     return () => clearTimeout(t);
   }, [leaving]);
@@ -85,7 +85,6 @@ export function BootSequence() {
 
   if (gone || (gate !== "ssr" && gate !== "run" && gate !== "leaving")) return null;
 
-  const screen = { command, log, pulling };
   return (
     <div
       id="boot-overlay"
@@ -94,27 +93,13 @@ export function BootSequence() {
       role="dialog"
       aria-modal="true"
       aria-label="Booting portfolio"
-      // Hidden unless the pre-paint gate chose to run the intro (no JS → never shown). The
-      // perspective is for the doors' swing.
-      className="fixed inset-0 z-[60] hidden outline-none [perspective:1400px] [html[data-boot=leaving]_&]:pointer-events-none [html[data-boot=leaving]_&]:block [html[data-boot=run]_&]:block"
+      // Hidden unless the pre-paint gate chose to run the intro (no JS → never shown).
+      className="fixed inset-0 z-[60] hidden outline-none [html[data-boot=leaving]_&]:pointer-events-none [html[data-boot=leaving]_&]:block [html[data-boot=run]_&]:block"
     >
       {/* CRT: the black the screen collapses into (invisible for the other transitions) */}
       <div data-boot-black aria-hidden="true" className="absolute inset-0 bg-black opacity-0" />
-      <div data-boot-screen className="absolute inset-0">
-        {/* Two door halves, each showing its half of the same screen; the left copy is hidden
-            from assistive tech and can't be focused (it's a visual twin). */}
-        <div data-boot-door="left" aria-hidden="true" inert className="absolute inset-y-0 left-0 w-1/2 overflow-hidden bg-bg">
-          <div className="absolute inset-y-0 left-0 w-[200%]">
-            <Screen {...screen} onSkip={skip} />
-          </div>
-          <span className="absolute inset-y-0 right-0 w-px bg-cyan/50 opacity-0 [html[data-boot=leaving]_&]:opacity-100" />
-        </div>
-        <div data-boot-door="right" className="absolute inset-y-0 right-0 w-1/2 overflow-hidden bg-bg">
-          <div className="absolute inset-y-0 right-0 w-[200%]">
-            <Screen {...screen} onSkip={skip} />
-          </div>
-          <span className="absolute inset-y-0 left-0 w-px bg-cyan/50 opacity-0 [html[data-boot=leaving]_&]:opacity-100" />
-        </div>
+      <div data-boot-screen className="absolute inset-0 bg-bg">
+        <Screen command={command} log={log} pulling={pulling} onSkip={skip} />
         {/* CRT: the screen turns into a bright line before it shrinks to a dot */}
         <div data-crt-line aria-hidden="true" className="absolute inset-0 bg-[#e6fdff] opacity-0" />
       </div>

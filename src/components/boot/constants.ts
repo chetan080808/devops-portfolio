@@ -13,11 +13,10 @@ export const LINE_MS = 130;
 export const lineDelayMs = (i: number, commandLength: number) => TYPE_DELAY_MS + commandLength * CHAR_MS + 160 + i * LINE_MS;
 
 /**
- * Exit transitions (`html[data-boot=leaving][data-boot-transition=…]`, keyframes in globals.css).
- * Chosen by `?transition=doors|crt` (default doors); reduced motion → fade; Skip → quick fade.
+ * Exit transitions (`html[data-boot=leaving][data-boot-transition=…]`, keyframes in globals.css):
+ * CRT power-off by default; reduced motion → fade; Skip → quick fade.
  */
-export const BOOT_TRANSITIONS = ["doors", "crt"] as const;
-export const EXIT_MS: Record<string, number> = { doors: 640, crt: 620, fade: 400, skip: 220 };
+export const EXIT_MS: Record<string, number> = { crt: 620, fade: 400, skip: 220 };
 
 /**
  * Safety net: if the React timeline hasn't taken over by now (slow hydration on a throttled

@@ -133,7 +133,7 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
 
 /** Resolves once the last fixed (CSS-timed) log line has appeared; immediately if there is none. */
 function fixedLinesShown(): Promise<unknown> {
-  const all = document.querySelectorAll("[data-boot-door=right] [data-boot-line]");
+  const all = document.querySelectorAll("#boot-overlay [data-boot-line]");
   const last = all[all.length - 1];
   if (!last) return Promise.resolve();
   return Promise.all(last.getAnimations().map((a) => a.finished)).catch(() => {});
