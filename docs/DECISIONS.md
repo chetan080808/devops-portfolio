@@ -550,3 +550,47 @@ Updated after every checkpoint.
   third card at 768 px; boot 9.3–10 s at 4× CPU (D-41 cap). Scroll frame rate measured 34–42 fps
   on throttled phones and 37 fps with up-to-650 ms frames on desktop while only ~650 MB RAM was
   free; earlier clean runs gave 54–58 fps: re-measure on a quiet machine before acting.
+
+### D-46 Panels without backdrop blur (scroll performance)
+
+- **Context:** after M4, desktop scrolling measured 35–47 fps with single frames of 300–550 ms,
+  also with enough free memory, and in sections without 3D. A static control page scrolled by the
+  same synthetic gesture held 60 fps, and almost no slow frame had a main-thread long task: the
+  cost was painting / compositing.
+- **A/B (live, 1280×800, CSS injected per variant, 2 rounds):** baseline 40–42 fps; panel blur off
+  51–58 fps; background animation off 43–49 fps; both off 53–59 fps.
+- **Cause:** every `glass` panel had `backdrop-filter: blur(14px)`. Behind the panels is the fixed,
+  always-moving background (drifting grid, rising particles), so each visible panel's blur was
+  recomputed every frame, and more panels are on screen while scrolling.
+- **Choice:** `glass` keeps its tint and 1 px border but no blur; the tint is a little denser
+  (0.78 / 0.74 instead of 0.6 / 0.55). Over the near-black page the blur was barely visible. The
+  navbar keeps its own blur once scrolled (one element). Dialogs are 90–95% opaque anyway.
+- **Result (live):** desktop 57–58 fps, worst frame 50–67 ms (same runs with the old blur injected:
+  47–49 fps, 317–367 ms). Phones at 4× CPU unchanged at 39–42 fps (CPU-bound there).
+- **Also in this round:** at 768 px the odd last project card is centred at card width (a
+  full-row card would be twice as wide as its neighbours); Car Rental Portal status "Completed".
+
+### D-47 Deploy through a dedicated SSM Command document (least privilege)
+
+- **Context:** the GitHub deploy role could `ssm:SendCommand` with `AWS-RunShellScript` to the node:
+  whoever controlled a production workflow run could run any shell command as root (D-36).
+- **Options:** keep RunShellScript and trust the workflow; a document that only sets the image
+  (`kubectl set image`, manifests applied by an admin); a document that deploys "the repository
+  at commit X" with the commit as its only input.
+- **Choice:** the last. `devops-portfolio-deploy` (Terraform, `ssm-deploy.tf`), one parameter
+  `ImageTag` with `allowedPattern ^[0-9a-f]{40}$`: SSM rejects anything else before the node sees
+  it (verified: a tag with shell syntax returns InvalidParameters). Fixed script
+  (`deploy-document.sh`): the commit must be on main (GitHub compare API: `ahead` / `identical`;
+  fork commits are reachable through the parent repository and come back `diverged`), the
+  manifests come from that commit (codeload tarball, python3 writes only plain files of
+  `deploy/k8s/app/`), kustomize, image tag + deploy time, apply, rollout status. The role's
+  `ssm:SendCommand` covers only this document and the node. `scripts/deploy-ssm.sh` replaces
+  `k8s-apply.sh` in the workflow; `k8s-apply.sh` stays for admin use with the SSO profile.
+- **Why not "set image" only:** manifest changes would no longer ship through the pipeline and the
+  cluster could drift from the repository. Here the pipeline still applies the manifests, but only
+  ones that exist on main.
+- **Trade-offs:** a deploy now depends on api.github.com and codeload.github.com (unauthenticated
+  API limit 60 requests / hour per IP; one per deploy). The role can still roll the site back to
+  any older commit of main, which is a deploy, not code execution.
+- **Verified:** terraform plan (1 add, 1 change) shown and approved; run #17 (20a42ca) deployed via
+  the document ("commit ... is on main (identical)", rollout complete), smoke test green.
