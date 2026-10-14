@@ -28,7 +28,7 @@ export function ProjectCard({ project, index, onInspect }: {
       data-landed="true"
       data-running={project.status === "Running" ? "true" : "false"}
       className={cn(
-        "glass group/card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-500 ease-premium",
+        "glass group/card group relative flex flex-col overflow-hidden rounded-2xl p-5 md:p-6 transition-all duration-500 ease-premium",
         "hover:-translate-y-1 hover:border-cyan/30 hover:glow-edge active:translate-y-0 active:scale-[0.99] active:duration-100",
         // The whole card is the inspect button's hit area, so the card shows its keyboard focus.
         "has-focus-visible:border-cyan/60 has-focus-visible:glow-edge motion-reduce:transform-none",
@@ -53,12 +53,14 @@ export function ProjectCard({ project, index, onInspect }: {
         </span>
       </div>
 
-      <MiniSlot index={index} />
+      <MiniSlot index={index} status={project.status} />
 
-      <h3 className="mt-5 text-xl font-semibold tracking-tight text-fg">{project.name}</h3>
-      <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{project.impact}</p>
+      <h3 className="mt-4 text-lg font-semibold tracking-tight text-fg md:mt-5 md:text-xl">{project.name}</h3>
+      {/* Phones: clamped to 3 lines at its natural height (stretching it would show the clipped
+          lines); the chips take the free space instead so footers line up across cards. */}
+      <p className="mt-2 text-sm leading-relaxed text-muted max-md:line-clamp-3 md:mt-3 md:flex-1">{project.impact}</p>
 
-      <ul className="mt-6 flex flex-wrap gap-1.5" aria-label="Tech stack">
+      <ul className="flex flex-wrap gap-1.5 max-md:mt-auto max-md:pt-4 md:mt-6" aria-label="Tech stack">
         {project.stack.slice(0, MAX_CHIPS).map((tech) => (
           <li key={tech}>
             <Chip>{tech}</Chip>
@@ -71,7 +73,7 @@ export function ProjectCard({ project, index, onInspect }: {
         )}
       </ul>
 
-      <div className="mt-6 flex items-center justify-between border-t border-line pt-4 font-mono text-[0.7rem]">
+      <div className="mt-4 flex items-center justify-between border-t border-line pt-3 font-mono text-[0.7rem] md:mt-6 md:pt-4">
         <span className="text-faint">{READY[project.status]}</span>
         <button
           type="button"

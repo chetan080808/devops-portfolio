@@ -90,8 +90,76 @@ export function MiniDropScroll() {
       };
     });
 
-    // Graceful version below desktop: cards fade up as they enter.
-    mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
+    // Phones: each container drops into its bay when its card comes into view (scrolled up into
+    // view, or swiped in in the carousel); the card flips from "Pending" to its real status.
+    // Transform / opacity only. Server HTML = landed, so no-JS and reduced motion show the final state.
+    mm.add("(max-width: 767px) and (prefers-reduced-motion: no-preference)", () => {
+      const grid = document.querySelector<HTMLElement>("[data-project-grid]");
+      if (!grid) return;
+      const cards = Array.from(grid.querySelectorAll<HTMLElement>(":scope > article"));
+      const counter = document.querySelector<HTMLElement>("[data-running-count]");
+      const recount = () => {
+        if (!counter) return;
+        const running = cards.filter((c) => c.dataset.landed === "true" && c.dataset.running === "true").length;
+        const text = `${running}/${cards.length} running`;
+        if (counter.textContent !== text) counter.textContent = text;
+      };
+      const art = (card: HTMLElement) => card.querySelector<HTMLElement>("[data-mini-art]");
+      cards.forEach((card) => {
+        card.dataset.landed = "false";
+        const a = art(card);
+        if (a) a.style.opacity = "0";
+      });
+      recount();
+
+      const land = (card: HTMLElement) => {
+        const a = art(card);
+        const done = () => {
+          if (a) a.style.opacity = "";
+          card.dataset.landed = "true";
+          card.querySelector("[data-bay-flash]")?.animate([{ opacity: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0 }], {
+            duration: 650,
+            easing: "ease-out",
+          });
+          recount();
+        };
+        if (!a) return done();
+        a.style.opacity = "";
+        a.animate(
+          [
+            { transform: "translateY(-150%)", opacity: 0 },
+            { transform: "translateY(-150%)", opacity: 1, offset: 0.05 },
+            { transform: "translateY(5%)", opacity: 1, offset: 0.78 },
+            { transform: "translateY(0)", opacity: 1 },
+          ],
+          { duration: 700, easing: "cubic-bezier(0.3, 0.7, 0.3, 1)" },
+        ).finished.then(done, done);
+      };
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            io.unobserve(e.target);
+            land(e.target as HTMLElement);
+          }
+        },
+        { threshold: 0.6 },
+      );
+      cards.forEach((c) => io.observe(c));
+
+      return () => {
+        io.disconnect();
+        cards.forEach((card) => {
+          card.dataset.landed = "true";
+          const a = art(card);
+          if (a) a.style.opacity = "";
+        });
+        recount();
+      };
+    });
+
+    // Tablets: cards fade up as they enter.
+    mm.add("(min-width: 768px) and (max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
       gsap.fromTo(
         "[data-project-grid] > article",
         { opacity: 0, y: 24 },
