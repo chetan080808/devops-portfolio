@@ -42,6 +42,7 @@ export const site: SiteContent = {
       "service/portfolio created",
     ],
     readyLine: "pod/portfolio-0 1/1 Running",
+    fallbackLine: "[ OK ] continuing in background",
   },
 
   nav: [

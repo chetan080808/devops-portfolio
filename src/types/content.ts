@@ -137,6 +137,8 @@ export interface SiteContent {
     lines: string[];
     /** Printed when the 3D scene is ready */
     readyLine: string;
+    /** Closing line when the gate's safety net ends the boot before React takes over. */
+    fallbackLine: string;
   };
   nav: Link[];
   hero: {

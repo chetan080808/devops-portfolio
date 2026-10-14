@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { site } from "@/content/site";
 import { assetsDownloaded, sceneStore } from "@/lib/sceneStore";
+import { lineDelayMs } from "./constants";
 
 export type LogTone = "plain" | "ok" | "warn";
 export interface LogLine {
@@ -10,17 +11,9 @@ export interface LogLine {
   tone: LogTone;
 }
 
-/** Typing is a CSS animation (BootSequence) so it starts at first paint, not at hydration. */
-export const TYPE_DELAY_MS = 120;
-export const CHAR_MS = 22;
-const LINE_MS = 130;
-/** Lines already due when React hydrates are printed in quick succession instead of all at once. */
-const CATCH_UP_MS = 55;
 const READY_HOLD = 380;
 /** Measured from first paint: stop waiting for assets; the scene fades in on its own once ready. */
 const CAP_MS = 2900;
-export const EXIT_MS = 450;
-export const SKIP_EXIT_MS = 220;
 
 /**
  * Drives the boot log on a clock that starts at first paint (set by BootGate), so loading,
@@ -48,25 +41,22 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
 
   useEffect(() => {
     if (!active) return;
+    // React has the boot now: the gate script's safety-net exit stands down.
+    window.__pfBootLive = true;
+    // Took over during the safety net's hold: its closing line goes, React prints its own.
+    delete document.documentElement.dataset.bootFallback;
     const origin = window.__pfBootT0 ?? performance.now();
     const elapsed = () => performance.now() - origin;
     const timers: number[] = [];
     const after = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, Math.max(0, ms)));
     const push = (text: string, tone: LogTone = "plain") => setLog((l) => [...l, { text, tone }]);
     let finishing = false;
+    let cancelled = false;
 
-    // Absolute schedule (ms after first paint); anything overdue catches up quickly.
+    // Absolute schedule (ms after first paint). The fixed lines are CSS-timed in BootSequence (they
+    // appear even before hydration); the "pulling" line follows them.
     const now = elapsed();
-    const linesAt = TYPE_DELAY_MS + command.length * CHAR_MS + 160;
-    let next = 0;
-    const schedule = (at: number, fn: () => void) => {
-      const delay = Math.max(at - now, next);
-      next = delay + CATCH_UP_MS;
-      after(delay, fn);
-      return delay;
-    };
-    lines.forEach((line, i) => schedule(linesAt + i * LINE_MS, () => push(line)));
-    const pullDelay = schedule(linesAt + lines.length * LINE_MS, () => setPulling(true));
+    const pullDelay = Math.max(lineDelayMs(lines.length, command.length) - now, 0);
 
     const finish = (outcome: "ready" | "deferred" | "failed" | "timeout") => {
       if (finishing || leavingRef.current) return;
@@ -93,6 +83,7 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
     };
 
     let pullingShown = false;
+    let capReached = false;
     const check = () => {
       if (!pullingShown) return;
       const s = sceneStore.get();
@@ -102,17 +93,36 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
       else if (s.deferred) finish("deferred");
     };
     const unsubscribe = sceneStore.subscribe(check);
-    after(pullDelay + 1, () => {
-      pullingShown = true;
-      check();
+    // The CSS clock starts at the lines' first style pass, which can trail first paint: wait until
+    // the last one is really visible, so nothing React prints ever jumps ahead of it.
+    after(pullDelay, () =>
+      fixedLinesShown().then(() => {
+        if (cancelled) return;
+        setPulling(true);
+        pullingShown = true;
+        check();
+        if (capReached) finish("timeout");
+      }),
+    );
+    after(CAP_MS - now, () => {
+      capReached = true;
+      if (pullingShown) finish("timeout");
     });
-    after(Math.max(CAP_MS - now, pullDelay + 1), () => finish("timeout"));
 
     return () => {
+      cancelled = true;
       timers.forEach(clearTimeout);
       unsubscribe();
     };
   }, [active, command, lines, readyLine, leave]);
 
   return { command, log, pulling, leaving, skip: () => leave("skip") };
+}
+
+/** Resolves once the last fixed (CSS-timed) log line has appeared; immediately if there is none. */
+function fixedLinesShown(): Promise<unknown> {
+  const all = document.querySelectorAll("[data-boot-door=right] [data-boot-line]");
+  const last = all[all.length - 1];
+  if (!last) return Promise.resolve();
+  return Promise.all(last.getAnimations().map((a) => a.finished)).catch(() => {});
 }

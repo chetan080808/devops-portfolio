@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import { useSceneState } from "@/hooks/useSceneState";
 import { Canvas, useThree } from "@react-three/fiber";
 import { sceneStore } from "@/lib/sceneStore";
 import { startAssetLoading } from "./assets";
@@ -28,6 +29,9 @@ export default function HeroCanvas({ mobile, reducedMotion, drop, active }: Prop
   // No frames until every shader is compiled (ReadySignal): otherwise the first frames compile
   // them synchronously, one long main-thread task each.
   const [warm, setWarm] = useState(false);
+  // No frames behind the boot screen either: it covers the canvas, and its exit transition needs
+  // the GPU. The intro starts from an empty stage when the boot is done anyway.
+  const bootDone = useSceneState((s) => s.bootDone);
   // Device pixel ratio after the pixel budget (PixelBudget); starts at the plain range.
   const [dpr, setDpr] = useState<number | null>(null);
   return (
@@ -36,7 +40,7 @@ export default function HeroCanvas({ mobile, reducedMotion, drop, active }: Prop
       flat
       // R3F re-applies this prop on every render, so the budgeted value has to be the prop itself.
       dpr={dpr ?? (mobile ? DPR_MOBILE : DPR_DESKTOP)}
-      frameloop={active && warm ? "always" : "never"}
+      frameloop={active && warm && bootDone ? "always" : "never"}
       gl={{ antialias: !mobile, alpha: true, powerPreference: "high-performance" }}
       camera={{ position: [0, 6.9, 12.8], fov: 32, near: 0.1, far: 60 }}
       aria-hidden="true"
