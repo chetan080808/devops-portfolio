@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * Builds the monochrome logos for the dashboard's tag chips:
- * - public/icons/brands.svg: ONE sprite (<symbol> per icon, fill inherits currentColor), one
- *   cached request for all icons, kept out of the HTML / RSC payload;
- * - src/components/sections/dashboard/brandIcons.ts: chip name → symbol id + brand colour.
+ * Builds the logos for the dashboard's skill tiles:
+ * - public/icons/brands.svg: ONE sprite (<symbol> per logo, the glyph's fill inherits
+ *   currentColor), one cached request for all logos, kept out of the HTML / RSC payload;
+ * - src/components/sections/dashboard/brandIcons.ts: tile name → symbol id + brand colours.
  *
  *   node scripts/icons/build-brand-icons.mjs <aws-icon-package-dir>
  *
  * - Tools: Simple Icons (pinned SI_VERSION), fetched from jsDelivr.
  * - AWS services: the official AWS Architecture Icons package (download the zip from
- *   https://aws.amazon.com/architecture/icons/ and unzip it). Only the white glyph of the 16 px
- *   service icon is kept (the coloured background tile is dropped); its category colour is kept
- *   as the hover colour.
- * Names without an icon in either set are simply left out: the chip falls back to a dot.
+ *   https://aws.amazon.com/architecture/icons/ and unzip it). 16 px service icons: the glyph is
+ *   the path; the category-coloured tile is a rect whose fill is `var(--tile)` (transparent by
+ *   default), so hovering shows the original icon (white glyph on its coloured tile).
+ * Every name in site.ts's tag panels must be listed (an alias is fine): no fallback.
  * Credits: ASSETS.md.
  */
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -20,15 +20,19 @@ import { join } from "node:path";
 
 const SI_VERSION = "16.35.0";
 
-/** Chip name (exactly as in site.ts) → Simple Icons slug */
+/** Tile name (exactly as in site.ts) → Simple Icons slug */
 const TOOLS = {
   Docker: "docker",
+  // No Compose logo in either set: Compose is Docker's tool, so it shows the Docker logo.
+  "Docker Compose": "docker",
   Kubernetes: "kubernetes",
   Nginx: "nginx",
   Terraform: "terraform",
   "GitHub Actions": "githubactions",
   Jenkins: "jenkins",
   Python: "python",
+  // Boto3 = the AWS SDK for Python.
+  Boto3: "python",
   Bash: "gnubash",
   PostgreSQL: "postgresql",
   MySQL: "mysql",
@@ -36,7 +40,7 @@ const TOOLS = {
   Grafana: "grafana",
 };
 
-/** Chip name → AWS Architecture Service icon file (16 px) */
+/** Tile name → AWS Architecture Service icon file (16 px) */
 const AWS = {
   EC2: "Arch_Amazon-EC2_16.svg",
   S3: "Arch_Amazon-Simple-Storage-Service_16.svg",
@@ -62,8 +66,56 @@ const AWS = {
   CodeBuild: "Arch_AWS-CodeBuild_16.svg",
 };
 
-/** Round every number in a path to 2 decimals (24-unit grid: invisible, ~40% smaller). */
-const round = (d) => d.replace(/-?\d*\.\d+/g, (n) => String(Math.round(Number(n) * 100) / 100));
+/** AWS symbols show the whole 24-unit tile minus a 2-unit margin (glyph = 16 of 20 units). */
+const AWS_VIEWBOX = "2 2 20 20";
+
+const NUMBER = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/;
+/** Arguments per path command (lower or upper case). */
+const ARITY = { m: 2, l: 2, h: 1, v: 1, c: 6, s: 4, q: 4, t: 2, a: 7, z: 0 };
+
+/**
+ * Rounds a path's numbers to 3 decimals (24-unit grid: invisible, much smaller), parsing it as
+ * commands. NOT a regex over numbers: arc flags are single digits that may be packed against the
+ * next number ("a.19.19 0 00.19-.19" = flags 0, 0 then x .19); reading "00.19" as one number
+ * dropped both flags and broke every logo with arcs (Docker, Kubernetes, PostgreSQL, …).
+ */
+export function roundPath(d) {
+  const out = [];
+  let i = 0;
+  let cmd = null;
+  let arg = 0;
+  const skip = () => {
+    while (i < d.length && /[\s,]/.test(d[i])) i++;
+  };
+  for (skip(); i < d.length; skip()) {
+    const ch = d[i];
+    if (/[a-zA-Z]/.test(ch)) {
+      if (!(ch.toLowerCase() in ARITY)) throw new Error(`unknown path command ${ch}`);
+      cmd = ch;
+      arg = 0;
+      out.push(ch);
+      i++;
+      continue;
+    }
+    if (!cmd) throw new Error("path data must start with a command");
+    const lower = cmd.toLowerCase();
+    const pos = arg % ARITY[lower];
+    if (lower === "a" && (pos === 3 || pos === 4)) {
+      if (!/[01]/.test(ch)) throw new Error(`bad arc flag at ${i}`);
+      out.push(` ${ch}`);
+      i++;
+    } else {
+      const m = NUMBER.exec(d.slice(i));
+      if (!m) throw new Error(`bad number at ${i}: ${d.slice(i, i + 12)}`);
+      const n = String(Math.round(Number(m[0]) * 1000) / 1000);
+      // A separator is only needed when the next token could merge with the previous one.
+      out.push(/^[A-Za-z]$/.test(out[out.length - 1]) || n.startsWith("-") ? n : ` ${n}`);
+      i += m[0].length;
+    }
+    arg++;
+  }
+  return out.join("");
+}
 
 function findFile(dir, name) {
   for (const entry of readdirSync(dir)) {
@@ -85,22 +137,22 @@ function awsIcon(dir, file) {
   const d = [...svg.matchAll(/<path[^>]*\sd="([^"]+)"/g)].map((m) => m[1]);
   if (d.length !== 1) throw new Error(`${file}: expected one glyph path, found ${d.length}`);
   const tx = /transform="translate\(([-\d.]+),\s*([-\d.]+)\)"/.exec(svg);
-  return {
-    // The glyph sits in 4..20 of the 24-unit tile: crop to it so it matches Simple Icons' size.
-    vb: "3.5 3.5 17 17",
-    d: round(d[0]),
-    ...(tx ? { tx: [Number(tx[1]), Number(tx[2])] } : {}),
-    evenodd: true,
-    hex: (hex[1] ?? hex[2]).toUpperCase(),
-  };
+  return { source: path, d: roundPath(d[0]), tx: tx ? [Number(tx[1]), Number(tx[2])] : null, hex: (hex[1] ?? hex[2]).toUpperCase() };
 }
 
 async function toolIcon(slug) {
   const res = await fetch(`https://cdn.jsdelivr.net/npm/simple-icons@${SI_VERSION}/icons/${slug}.svg`);
   if (!res.ok) throw new Error(`simple-icons ${slug}: ${res.status}`);
   const svg = await res.text();
-  const d = /<path d="([^"]+)"/.exec(svg)[1];
-  return { vb: "0 0 24 24", d: round(d) };
+  const paths = [...svg.matchAll(/<path d="([^"]+)"/g)];
+  if (paths.length !== 1 || !/viewBox="0 0 24 24"/.test(svg)) throw new Error(`simple-icons ${slug}: unexpected SVG`);
+  return { svg, d: roundPath(paths[0][1]) };
+}
+
+/** Relative luminance (WCAG) of a hex colour. */
+function luminance(hex) {
+  const c = [0, 2, 4].map((k) => parseInt(hex.slice(k, k + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 }
 
 async function main() {
@@ -108,42 +160,65 @@ async function main() {
   if (!dir) throw new Error("usage: build-brand-icons.mjs <aws-icon-package-dir>");
   const meta = await (await fetch(`https://cdn.jsdelivr.net/npm/simple-icons@${SI_VERSION}/data/simple-icons.json`)).json();
   const list = Array.isArray(meta) ? meta : meta.icons;
-  const out = {};
+  const slugOf = (i) => i.slug ?? i.title.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const symbols = new Map(); // symbol id → markup
+  const map = {}; // tile name → { id, fg, tile? }
+  const sources = {}; // symbol id → original SVG (for scripts/icons/verify-brand-icons.mjs)
+
   for (const [name, slug] of Object.entries(TOOLS)) {
-    const entry = list.find((i) => i.slug === slug || i.title.toLowerCase().replace(/[^a-z0-9]/g, "") === slug);
-    out[name] = { ...(await toolIcon(slug)), hex: entry.hex.toUpperCase() };
+    const id = `si-${slug}`;
+    if (!symbols.has(id)) {
+      const { svg, d } = await toolIcon(slug);
+      symbols.set(id, `<symbol id="${id}" viewBox="0 0 24 24"><path d="${d}"/></symbol>`);
+      sources[id] = { svg, viewBox: "0 0 24 24" };
+    }
+    const hex = list.find((i) => slugOf(i) === slug).hex.toUpperCase();
+    // Hover colour: the brand colour, or white when it would vanish on the near-black background.
+    map[name] = { id, fg: luminance(hex) < 0.03 ? "FFFFFF" : hex };
   }
-  for (const [name, file] of Object.entries(AWS)) out[name] = awsIcon(dir, file);
+  for (const [name, file] of Object.entries(AWS)) {
+    const id = `aws-${file.replace(/^Arch_|_16\.svg$/g, "").toLowerCase()}`;
+    const icon = awsIcon(dir, file);
+    const attrs = icon.tx ? ` transform="translate(${icon.tx[0]} ${icon.tx[1]})"` : "";
+    symbols.set(
+      id,
+      `<symbol id="${id}" viewBox="${AWS_VIEWBOX}"><rect x="2" y="2" width="20" height="20" style="fill:var(--tile,transparent);transition:fill .2s"/><path fill-rule="evenodd"${attrs} d="${icon.d}"/></symbol>`,
+    );
+    sources[id] = { svg: readFileSync(icon.source, "utf8"), viewBox: AWS_VIEWBOX };
+    // Hover = the original icon: white glyph on its category-coloured tile.
+    map[name] = { id, fg: "FFFFFF", tile: icon.hex };
+  }
 
-  const id = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const symbols = Object.entries(out).map(([name, i]) => {
-    const attrs = `${i.evenodd ? ' fill-rule="evenodd"' : ""}${i.tx ? ` transform="translate(${i.tx[0]} ${i.tx[1]})"` : ""}`;
-    return `<symbol id="${id(name)}" viewBox="${i.vb}"><path${attrs} d="${i.d}"/></symbol>`;
-  });
-  const sprite = `<svg xmlns="http://www.w3.org/2000/svg">${symbols.join("")}</svg>\n`;
+  const sprite = `<svg xmlns="http://www.w3.org/2000/svg">${[...symbols.values()].join("")}</svg>\n`;
   writeFileSync("public/icons/brands.svg", sprite);
+  if (process.env.ICON_SOURCES) writeFileSync(process.env.ICON_SOURCES, JSON.stringify(sources));
 
-  const body = Object.entries(out)
-    .map(([name, i]) => `  ${JSON.stringify(name)}: { id: "${id(name)}", hex: "${i.hex}" },`)
+  const body = Object.entries(map)
+    .map(([name, i]) => `  ${JSON.stringify(name)}: ${JSON.stringify(i).replace(/"(\w+)":/g, "$1: ")},`)
     .join("\n");
   const ts = `// GENERATED by scripts/icons/build-brand-icons.mjs — do not edit by hand.
 // Symbols live in public/icons/brands.svg. Tools: Simple Icons ${SI_VERSION} (CC0; trademarks belong
-// to their owners). AWS services: AWS Architecture Icons (glyph only; hex = category colour).
-// Credits in ASSETS.md.
+// to their owners). AWS services: AWS Architecture Icons. Credits in ASSETS.md.
 
 /** Bump with every regenerated sprite (cache busting). */
 export const BRAND_SPRITE = "/icons/brands.svg?v=${Date.now().toString(36)}";
 
-/** Chip name (as written in site.ts) → sprite symbol id + brand colour (no "#"). Names not listed fall back to a dot. */
-export const brandIcons: Record<string, { id: string; hex: string }> = {
+/**
+ * Tile name (as written in site.ts) → sprite symbol + hover colours (hex, no "#"): \`fg\` = logo
+ * colour, \`tile\` = AWS category colour behind it (the original AWS icon).
+ */
+export const brandIcons: Record<string, { id: string; fg: string; tile?: string }> = {
 ${body}
 };
 `;
   writeFileSync("src/components/sections/dashboard/brandIcons.ts", ts);
-  console.log(`wrote ${symbols.length} icons: sprite ${sprite.length} bytes, map ${ts.length} bytes`);
+  console.log(`wrote ${symbols.size} symbols for ${Object.keys(map).length} names: sprite ${sprite.length} bytes`);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+if (process.argv[1]?.endsWith("build-brand-icons.mjs")) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

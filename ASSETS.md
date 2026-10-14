@@ -7,9 +7,10 @@
 CC0 does not require attribution; credited anyway. All other 3D models (`cluster_node`, `helm_wheel`,
 `shipping_container`) are original work made in Blender for this project.
 
-## Tool and service logos (dashboard chips)
+## Tool and service logos (dashboard skill tiles)
 
-Small monochrome logos next to each tool / AWS service name in the Observability dashboard, served
+Logos above each tool / AWS service name in the Observability dashboard (monochrome; brand colours
+on hover / tap; AWS services then show their original icon, white glyph on the category tile), served
 as one sprite (`public/icons/brands.svg`, built by `scripts/icons/build-brand-icons.mjs`). They
 only identify the tools used; all trademarks belong to their owners, and no endorsement is implied.
 
@@ -20,4 +21,6 @@ only identify the tools used; all trademarks belong to their owners, and no endo
 | GNU Bash | Simple Icons 16.35.0 | MIT |
 | AWS service icons (EC2, S3, VPC, IAM, RDS, EKS, Lambda, …) | [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/) (package 2026-07-31), 16 px service icons, white glyph only, recoloured | [AWS Architecture Icons terms](https://aws.amazon.com/architecture/icons/) |
 
-Names without an icon in either set (Docker Compose, Boto3) show a neutral dot.
+Docker Compose shows the Docker logo and Boto3 (the AWS SDK for Python) the Python logo; neither
+set has its own. `scripts/icons/verify-brand-icons.mjs` checks every symbol pixel by pixel
+against its original file.

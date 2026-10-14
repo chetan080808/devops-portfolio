@@ -507,3 +507,25 @@ Updated after every checkpoint.
   stage list padding reduced.
 - **Checked (local prod, CDP phone 360×780):** run states at 3 scroll positions (0/4 queued →
   Build running → 2/4 passed, Deploy running), dashboard rows pair up, no horizontal overflow.
+
+### D-44 Skill tiles with exact logos (replaces D-43's chips)
+
+- **Context:** on the owner's phone several logos were broken (Docker empty, Kubernetes and
+  PostgreSQL specks, GitHub Actions two dashes, MySQL squashed, Grafana / Prometheus / Jenkins
+  without detail), and the chips' 14 px icons were too small.
+- **Cause:** the generator rounded numbers with a regex. SVG arc commands pack their two one-digit
+  flags against the next number (`a.19.19 0 00.19-.19` = flags 0, 0, then x .19); the regex read
+  `00.19` as one number, so every arc lost its flags and the following arguments shifted.
+- **Fix:** a command-aware path parser (`roundPath`: arity per command, arc flags read as single
+  characters), 3 decimals (2 decimals still changed Grafana's fine detail by 0.7% of pixels).
+  New `scripts/icons/verify-brand-icons.mjs` rasterises every sprite symbol and its original file
+  at 96 px in headless Chrome and compares pixels: all 34 match (≤ 0.04% anti-aliasing).
+- **Layout:** skill tiles, logo (28 / 32 px) above the name; 4 per row on phones, 6 / 8 / 7
+  (sm / md / lg). Monochrome in the panel accent (cyan AWS, violet Toolbox); hover (pointer
+  devices only) or a tap (touch: `data-flash` for 1.4 s, TileFlash) shows the brand colours: tools
+  in their brand colour (white if too dark for the background, luminance < 0.03), AWS services as
+  the original icon (white glyph on the category-coloured tile, `--tile` custom property inherited
+  into the `<use>` shadow tree). Docker Compose → Docker logo, Boto3 → Python logo; no dots.
+  Long names wrap only at camel-case joints (`<wbr>`: "Cloud|Formation").
+- **Cost:** sprite 26.5 KB gzip (was 22 KB with the broken rounding); phone dashboard ~1.8k px at
+  360 (tile panels 434 px each before the final padding trim).

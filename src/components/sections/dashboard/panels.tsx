@@ -1,9 +1,10 @@
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 import type { Accent, DashboardPanel } from "@/types/content";
 import { accentHex, accentText } from "@/lib/accent";
 import { cn } from "@/lib/cn";
 import { BRAND_SPRITE, brandIcons } from "./brandIcons";
 import { PanelFrame } from "./PanelFrame";
+import { TileFlash } from "./TileFlash";
 
 type PanelOf<K extends DashboardPanel["kind"]> = Extract<DashboardPanel, { kind: K }>;
 
@@ -189,31 +190,46 @@ export function ListPanel({ panel }: { panel: PanelOf<"list"> }) {
   );
 }
 
+/** Lets long names wrap at their camel-case joints only when needed ("Cloud|Formation"). */
+function breakable(name: string) {
+  const parts = name.split(/(?<=[a-z])(?=[A-Z])/);
+  return parts.map((part, i) => (
+    <Fragment key={i}>
+      {i > 0 && <wbr />}
+      {part}
+    </Fragment>
+  ));
+}
+
 /**
- * Tool / service chip: the real logo as a monochrome icon (sprite symbol, tinted with the panel
- * accent; its brand colour on hover), or a dot when neither icon set has it.
+ * Skill tile: the tool's / service's real logo (sprite symbol) above its name. Monochrome in the
+ * panel accent; on hover (pointer devices) or a tap (`data-flash`, TileFlash) it shows its brand
+ * colours: tools in their brand colour (white when that is too dark for the background), AWS
+ * services as the original icon (white glyph on the category-coloured tile, via `--tile`).
  */
-function TagChip({ name, accent }: { name: string; accent: Accent }) {
+function SkillTile({ name, accent }: { name: string; accent: Accent }) {
   const icon = brandIcons[name];
   return (
     <li
       data-list-item
-      className="group/chip flex items-center gap-1.5 rounded-md border border-line-strong bg-white/[0.02] px-2 py-1 font-mono text-[0.7rem] text-fg"
+      data-tile
+      className="group/tile flex min-w-0 flex-col items-center gap-1 rounded-lg border border-line bg-white/[0.02] px-0.5 pt-2 pb-1.5 sm:gap-1.5 sm:pt-2.5 sm:pb-2 transition-colors duration-200 hover:border-line-strong data-[flash=on]:border-line-strong"
     >
-      {icon ? (
+      {icon && (
         <svg
           aria-hidden="true"
-          className={cn("size-3.5 shrink-0 fill-current transition-colors duration-200 group-hover/chip:text-(--brand)", accentText[accent])}
-          style={{ "--brand": `#${icon.hex}` } as CSSProperties}
+          className={cn(
+            "size-7 shrink-0 fill-current transition-colors duration-200 sm:size-8 [--tile:transparent]",
+            accentText[accent],
+            "group-hover/tile:text-(--fg) group-hover/tile:[--tile:var(--tile-on)]",
+            "group-data-[flash=on]/tile:text-(--fg) group-data-[flash=on]/tile:[--tile:var(--tile-on)]",
+          )}
+          style={{ "--fg": `#${icon.fg}`, "--tile-on": icon.tile ? `#${icon.tile}` : "transparent" } as CSSProperties}
         >
           <use href={`${BRAND_SPRITE}#${icon.id}`} />
         </svg>
-      ) : (
-        <span className="flex size-3.5 shrink-0 items-center justify-center" aria-hidden="true">
-          <span className="size-1 rounded-full" style={{ backgroundColor: accentHex[accent] }} />
-        </span>
       )}
-      {name}
+      <span className="w-full text-center text-[0.62rem] leading-tight text-muted sm:text-[0.68rem]">{breakable(name)}</span>
     </li>
   );
 }
@@ -221,12 +237,14 @@ function TagChip({ name, accent }: { name: string; accent: Accent }) {
 export function TagsPanel({ panel }: { panel: PanelOf<"tags"> }) {
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
-      <ul className="flex flex-wrap gap-1.5">
+      {/* 4 tiles per row on phones, 6–8 from sm (7 in the half-width lg panel) */}
+      <ul className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 sm:gap-2 md:grid-cols-8 lg:grid-cols-7">
         {panel.items.map((item) => (
-          <TagChip key={item} name={item} accent={panel.accent} />
+          <SkillTile key={item} name={item} accent={panel.accent} />
         ))}
       </ul>
       {panel.caption && <p className="mt-3 font-mono text-[0.66rem] leading-snug text-muted sm:mt-4 sm:text-[0.7rem]">{panel.caption}</p>}
+      <TileFlash />
     </PanelFrame>
   );
 }
