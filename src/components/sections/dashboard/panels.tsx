@@ -8,8 +8,10 @@ import { TileFlash } from "./TileFlash";
 
 type PanelOf<K extends DashboardPanel["kind"]> = Extract<DashboardPanel, { kind: K }>;
 
-// Phones too: the grid is 2 columns from 0 px, so wide panels span both.
-const wideClass = (wide?: boolean) => (wide ? "col-span-2" : undefined);
+// The grid is 2 columns from 0 px (wide panels span both) and 4 from lg, where a wide panel takes
+// 3 columns next to one stat panel (zigzag, see site.ts order): side by side with a 2-column tile
+// panel, the stat panels stretched far past their content.
+const wideClass = (wide?: boolean) => (wide ? "col-span-2 lg:col-span-3" : undefined);
 
 function formatValue(value: number, decimals = 0, suffix = "", prefix = "") {
   return `${prefix}${value.toFixed(decimals)}${suffix}`;
@@ -54,7 +56,8 @@ export function StatPanel({ panel }: { panel: PanelOf<"stat"> }) {
 
 export function TextPanel({ panel }: { panel: PanelOf<"text"> }) {
   return (
-    <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
+    // Text panels share the last lg row two by two.
+    <PanelFrame title={panel.title} className={cn(wideClass(panel.wide), "lg:col-span-2")}>
       <div className="flex flex-1 flex-col justify-between gap-3 sm:gap-4">
         <p className={cn("flex items-start gap-2 text-[0.95rem] leading-snug font-medium sm:text-lg", accentText[panel.accent])}>
           <span
@@ -229,7 +232,7 @@ function SkillTile({ name, accent }: { name: string; accent: Accent }) {
           <use href={`${BRAND_SPRITE}#${icon.id}`} />
         </svg>
       )}
-      <span className="w-full text-center text-[0.62rem] leading-tight text-muted sm:text-[0.68rem]">{breakable(name)}</span>
+      <span className="w-full text-center text-[0.68rem] leading-tight text-muted">{breakable(name)}</span>
     </li>
   );
 }
@@ -237,8 +240,8 @@ function SkillTile({ name, accent }: { name: string; accent: Accent }) {
 export function TagsPanel({ panel }: { panel: PanelOf<"tags"> }) {
   return (
     <PanelFrame title={panel.title} className={wideClass(panel.wide)}>
-      {/* 4 tiles per row on phones, 6–8 from sm (7 in the half-width lg panel) */}
-      <ul className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 sm:gap-2 md:grid-cols-8 lg:grid-cols-7">
+      {/* 4 tiles per row on phones, 6 / 8 from sm / md, 10 in the 3-column lg panel */}
+      <ul className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 sm:gap-2 md:grid-cols-8 lg:grid-cols-10">
         {panel.items.map((item) => (
           <SkillTile key={item} name={item} accent={panel.accent} />
         ))}

@@ -10,7 +10,7 @@ export function Navbar() {
     // through), safe-area aware. md+: the floating glass bar.
     <header className="fixed inset-x-0 top-0 z-40 md:px-6 md:pt-4">
       <NavFrame>
-        <a href="#top" className="group flex items-center gap-2 font-mono text-sm text-fg">
+        <a href="#top" className="group -my-3 flex items-center gap-2 py-3 font-mono text-sm text-fg">
           <span className="text-cyan transition-transform duration-300 group-hover:-translate-x-0.5">~/</span>
           {site.profile.handle}
           <span className="animate-blink text-cyan" aria-hidden="true">

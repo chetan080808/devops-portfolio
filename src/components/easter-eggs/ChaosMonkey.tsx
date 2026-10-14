@@ -59,13 +59,15 @@ export function ChaosMonkeyButton({ disabled, className }: { disabled?: boolean;
       aria-describedby="chaos-hint"
       className={cn(
         // Neutral by default (it's an easter egg, not an error); red only when you reach for it.
-        "pointer-events-auto rounded-md border border-line-strong px-2 py-0.5 font-mono text-[0.68rem] whitespace-nowrap text-faint",
+        "pointer-events-auto relative rounded-md border border-line-strong px-2 py-0.5 font-mono text-[0.68rem] whitespace-nowrap text-faint",
         "transition-[color,background-color,border-color,transform] duration-300 active:scale-95 active:duration-75 hover:border-danger/60 hover:bg-danger/10 hover:text-danger",
         "focus-visible:border-danger focus-visible:bg-danger/10 focus-visible:text-danger",
         "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-line-strong disabled:hover:bg-transparent disabled:hover:text-faint",
         className,
       )}
     >
+      {/* Touch: the hit area reaches 44 px tall without changing the look */}
+      <span aria-hidden="true" className="absolute inset-x-0 -inset-y-[11px]" />
       {busy ? "chaos in progress…" : "release chaos monkey"}
       <span id="chaos-hint" className="sr-only">
         Easter egg: crashes a few cluster nodes, which then restart on their own.

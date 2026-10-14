@@ -27,7 +27,7 @@ export function Footer() {
                 href={`${meta.repoUrl}/actions/runs/${build.run.id}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2 text-success transition-colors hover:text-cyan"
+                className="-my-2 flex items-center gap-2 py-2 text-success transition-colors hover:text-cyan"
               >
                 <StatusDot accent="success" />
                 passed · #{build.run.number}
@@ -44,7 +44,7 @@ export function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 title={build.builtAt ? `built ${build.builtAt}` : undefined}
-                className="text-cyan transition-colors hover:text-fg"
+                className="-my-2 py-2 text-cyan transition-colors hover:text-fg"
               >
                 {short}
                 <span className="sr-only"> (commit on GitHub, opens in a new tab)</span>
@@ -60,7 +60,7 @@ export function Footer() {
           <p>
             © {profile.name} · built with Next.js, R3F &amp; GSAP · shipped via GitHub Actions → Kubernetes
           </p>
-          <a href={meta.repoUrl} target="_blank" rel="noreferrer" className="text-muted transition-colors hover:text-cyan">
+          <a href={meta.repoUrl} target="_blank" rel="noreferrer" className="-my-3 self-start py-3 text-muted transition-colors hover:text-cyan">
             view source<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span>
           </a>
         </div>

@@ -68,7 +68,7 @@ export function LiveDeployInfo() {
       {/* Full row on phones: 5 cells in 2 columns would leave the long pod name a half cell. */}
       <LiveCell label="served by" busy={pending} className="col-span-2 md:col-span-1">
         {info?.pod ? (
-          <span className="truncate text-fg" title={`pod/${info.pod}`}>{`pod/${info.pod}`}</span>
+          <span className="min-w-0 whitespace-normal text-fg [overflow-wrap:anywhere]" title={`pod/${info.pod}`}>{`pod/${info.pod}`}</span>
         ) : (
           <span className="text-faint">{missing}</span>
         )}

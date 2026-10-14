@@ -122,7 +122,7 @@ export function StageNode({
         <span className="block font-mono text-xs text-fg">{stage.label}</span>
         <span
           title={stage.milestone?.title}
-          className={cn("block truncate text-[0.7rem] text-muted", layout === "column" && "mx-auto max-w-[10.5rem]")}
+          className={cn("block text-[0.7rem] text-muted", layout === "column" ? "mx-auto line-clamp-2 max-w-[10.5rem] leading-snug" : "truncate")}
         >
           {stage.milestone ? stage.milestone.title : `${site.pipeline.parallel.jobs.length} jobs`}
         </span>

@@ -135,7 +135,7 @@ export function Terminal() {
       </div>
 
       <div className="p-5 font-mono text-[0.8rem] leading-relaxed sm:p-6">
-        <div ref={scrollRef} tabIndex={0} aria-label="Terminal history" className="h-[17rem] overflow-y-auto overscroll-contain pr-1">
+        <div ref={scrollRef} tabIndex={0} aria-label="Terminal history" className="h-[11.5rem] overflow-y-auto overscroll-contain pr-1 sm:h-[17rem]">
           <div role="log" aria-live="polite" aria-label="Terminal output">
             {entries.map((entry) =>
               entry.input !== null ? (

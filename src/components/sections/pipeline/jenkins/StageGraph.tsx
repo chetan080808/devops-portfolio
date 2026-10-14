@@ -105,7 +105,7 @@ export function StageGraph({ stages, onOpen }: { stages: PipelineStage[]; onOpen
               <StageNode stage={stage} onOpen={onOpen} layout="row" />
               {branch && (
                 <div className="ml-10 flex items-center gap-2">
-                  <span className="font-mono text-[0.6rem] tracking-wider text-muted uppercase">parallel</span>
+                  <span className="font-mono text-[0.68rem] tracking-wider text-muted uppercase">parallel</span>
                   <StageNode stage={branch} onOpen={onOpen} layout="row" />
                 </div>
               )}

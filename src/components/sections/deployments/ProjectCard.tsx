@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { Project } from "@/types/content";
 import { Badge } from "@/components/ui/Badge";
 import { Chip } from "@/components/ui/Chip";
@@ -41,8 +42,20 @@ export function ProjectCard({ project, index, onInspect }: {
       />
 
       <div className="flex items-center justify-between gap-3">
-        <p className="truncate font-mono text-[0.7rem] text-faint">
-          deploy/{project.id} · rev {index + 1}
+        {/* Wraps (only at "/", "-" and before the rev) instead of being cut off on narrow cards */}
+        <p className="min-w-0 font-mono text-[0.7rem] leading-snug text-faint">
+          deploy/<wbr />
+          {project.id.split("-").map((part, i) => (
+            <Fragment key={i}>
+              {i > 0 && (
+                <>
+                  -<wbr />
+                </>
+              )}
+              {part}
+            </Fragment>
+          ))}{" "}
+          <span className="whitespace-nowrap">· rev {index + 1}</span>
         </p>
         {/* Before its container lands: "Pending"; after: the project's real status */}
         <span className="hidden group-data-[landed=false]/card:inline">

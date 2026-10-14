@@ -529,3 +529,24 @@ Updated after every checkpoint.
   Long names wrap only at camel-case joints (`<wbr>`: "Cloud|Formation").
 - **Cost:** sprite 26.5 KB gzip (was 22 KB with the broken rounding); phone dashboard ~1.8k px at
   360 (tile panels 434 px each before the final padding trim).
+
+### D-45 M4 mobile review: findings and fixes
+
+- **Method:** scripted review of the live site (CDP, fresh profile) at 360×780 and 390×844 (touch,
+  coarse pointer, 4× CPU), 768×1024 (touch, 2× CPU), 1280×800 and 1440×900: horizontal overflow,
+  elements past the right edge, clipped text, tap targets < 24 px (and < 44 px), text < 10.5 px,
+  console errors, boot time, frame gaps during a full-page scroll gesture, plus a screenshot of
+  every viewport-height of every section. Result: no horizontal overflow, no console output.
+- **Fixed:** section command lines wrapped at 360 / 390 (decorative rule hidden below sm, label on
+  one line); desktop dashboard stat panels stretched to a tile panel's height (lg zigzag: tile
+  panels take 3 of 4 columns with 10 tiles per row next to one stat, text panels take 2); project
+  card names cut off (`deploy/car-rental-k…`: now wrap at "/" and "-"); touch targets under 24 px
+  (chaos button, footer run / commit / view-source links, navbar logo: larger hit areas, same
+  look); ~250 px of empty terminal history on phones (11.5 rem below sm); text under 11 px on
+  phones (tile names, PARALLEL label → 0.68 rem); pipeline graph subtitle cut off at md+ (2 lines);
+  footer pod name cut off on desktop (wraps).
+- **Not changed:** `docker inspect` (17 px tall, but its hit area is the whole card); targets of
+  24–43 px (terminal chips, menu, carousel dots, stage rows) meet WCAG 2.2 AA (24 px); the lone
+  third card at 768 px; boot 9.3–10 s at 4× CPU (D-41 cap). Scroll frame rate measured 34–42 fps
+  on throttled phones and 37 fps with up-to-650 ms frames on desktop while only ~650 MB RAM was
+  free; earlier clean runs gave 54–58 fps: re-measure on a quiet machine before acting.

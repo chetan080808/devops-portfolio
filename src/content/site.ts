@@ -207,7 +207,9 @@ export const site: SiteContent = {
   },
 
   dashboard: [
-    // Only claims you can back up. Layout: 4 columns, `wide` panels take 2.
+    // Only claims you can back up. Layout: 2 columns (phones, tablets), `wide` panels take both;
+    // lg: 4 columns, `wide` panels take 3 next to one stat (keep the order wide, stat, stat, wide),
+    // text panels take 2.
     {
       kind: "stat",
       id: "uptime",
