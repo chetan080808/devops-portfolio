@@ -12,7 +12,7 @@ export function ContactTerminal() {
   return (
     <Section id="contact" aria-labelledby="contact-title">
       <SectionHeader id="contact-title" index="04" label="ssh contact@portfolio" title="Let's talk">
-        Type a command, or skip the terminal and use the buttons.
+        {site.sections.contact}
       </SectionHeader>
 
       <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">

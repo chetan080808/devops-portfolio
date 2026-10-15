@@ -26,6 +26,10 @@ interface Entry {
 
 const SUGGESTIONS = ["help", "whoami", "ls projects", "kubectl get pods", "contact"];
 
+/** Auto-typed command: ms per character, and the pause before Enter */
+const AUTO_CHAR_MS = 60;
+const AUTO_ENTER_MS = 350;
+
 /**
  * Interactive terminal for the Contact section. Commands come from the pure engine in
  * lib/terminal (no eval, all output from site.ts). Output is a polite live region; clicking the
@@ -42,6 +46,10 @@ export function Terminal() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const startRef = useRef(0);
   const idRef = useRef(1000);
+  const rootRef = useRef<HTMLDivElement>(null);
+  /** The visitor typed or ran something: the auto command must not run (or stops typing). */
+  const userActed = useRef(false);
+  const runRef = useRef<(raw: string) => void>(() => {});
 
   useEffect(() => {
     startRef.current = performance.now();
@@ -71,7 +79,40 @@ export function Terminal() {
     setValue("");
   };
 
+  useEffect(() => {
+    runRef.current = run;
+  });
+
+  // Auto-type `site.terminal.autoCommand` once, the first time the terminal is mostly in view.
+  // Never focuses the input or scrolls; stops if the visitor types first. Reduced motion: no
+  // typing, the command and its output appear at once.
+  useEffect(() => {
+    const cmd = site.terminal.autoCommand;
+    const el = rootRef.current;
+    if (!cmd || !el) return;
+    const timers: number[] = [];
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        io.disconnect();
+        if (userActed.current) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return runRef.current(cmd);
+        for (let i = 1; i <= cmd.length; i++) {
+          timers.push(window.setTimeout(() => !userActed.current && setValue(cmd.slice(0, i)), i * AUTO_CHAR_MS));
+        }
+        timers.push(window.setTimeout(() => !userActed.current && runRef.current(cmd), cmd.length * AUTO_CHAR_MS + AUTO_ENTER_MS));
+      },
+      { threshold: 0.6 },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    userActed.current = true;
     if (e.key === "Enter") {
       e.preventDefault();
       run(value);
@@ -121,6 +162,7 @@ export function Terminal() {
 
   return (
     <div
+      ref={rootRef}
       onClick={onWindowClick}
       className="glass glow-edge overflow-hidden rounded-2xl bg-bg-raised/80 transition-shadow focus-within:ring-2 focus-within:ring-cyan/60"
     >
@@ -185,38 +227,54 @@ export function Terminal() {
           }}
         >
           <label htmlFor="terminal-input" className="shrink-0 text-success">
-            {prompt}
+            {/* Phones: the short prompt leaves room for the placeholder */}
+            <span className="max-sm:hidden">{prompt.slice(0, -2)}</span>
+            {prompt.slice(-2)}
           </label>
-          <input
-            id="terminal-input"
-            ref={inputRef}
-            value={value}
-            onChange={(e) => {
-              setValue(e.target.value);
-              setCursor(history.length);
-            }}
-            onKeyDown={onKeyDown}
-            autoComplete="off"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="send"
-            maxLength={200}
-            aria-describedby="terminal-hint"
-            // 16px on phones so iOS doesn't zoom into the field
-            className="min-w-0 flex-1 bg-transparent text-base text-fg caret-cyan outline-none sm:text-[0.8rem]"
-          />
+          <div className="relative min-w-0 flex-1">
+            <input
+              id="terminal-input"
+              ref={inputRef}
+              value={value}
+              placeholder={site.terminal.placeholder}
+              onChange={(e) => {
+                userActed.current = true;
+                setValue(e.target.value);
+                setCursor(history.length);
+              }}
+              onKeyDown={onKeyDown}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="send"
+              maxLength={200}
+              aria-describedby="terminal-hint"
+              // 16px on phones so iOS doesn't zoom into the field
+              className="peer w-full bg-transparent pl-[1.3ch] text-base text-fg caret-cyan outline-none placeholder:text-[0.8rem] placeholder:text-faint sm:text-[0.8rem]"
+            />
+            {/* Blinking block before the placeholder while the field is empty and not focused
+                (focused: the real caret blinks instead) */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-0 hidden -translate-y-1/2 animate-blink text-[0.8rem] text-cyan peer-placeholder-shown:inline peer-focus:hidden"
+            >
+              ▍
+            </span>
+          </div>
         </form>
         <p id="terminal-hint" className="sr-only">
           Type a command and press Enter. Type help to list commands. Tab completes, up and down arrows browse history.
         </p>
 
-        <div className="mt-4 flex flex-wrap gap-2" aria-label="Suggested commands">
+        <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Suggested commands">
+          <span className="text-[0.72rem] text-faint">{site.terminal.tryLabel}</span>
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => {
+                userActed.current = true;
                 run(s);
                 inputRef.current?.focus({ preventScroll: true });
               }}

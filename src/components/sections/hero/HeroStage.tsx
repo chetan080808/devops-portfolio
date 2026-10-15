@@ -217,7 +217,7 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
             style={maskStyle(EDGE_FADE)}
           />
         </div>
-        <div className="absolute inset-x-0 bottom-2 flex items-center justify-center gap-3">
+        <div className="absolute inset-x-0 bottom-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
           <p
             className={cn(
               "font-mono text-[0.68rem] whitespace-nowrap transition-colors",
@@ -249,6 +249,11 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
           ) : (
             // Waits for the intro to finish wiring the cluster (if the 3D scene is up at all).
             <ChaosMonkeyButton disabled={ready && !clusterReady} />
+          )}
+          {/* Plain note for the Chaos Monkey button: inline on desktop (a second row would push the
+              status row up into the 3D cluster on short screens), its own row on narrow stages */}
+          {!(staticHero && autoCapable === false) && (
+            <p className="w-full text-center text-[0.72rem] text-faint lg:w-auto">{site.chaos.note}</p>
           )}
         </div>
       </div>

@@ -109,11 +109,14 @@ export function BootSequence() {
 
 function Screen({ command, log, pulling, onSkip }: { command: string; log: LogLine[]; pulling: boolean; onSkip: () => void }) {
   return (
-    <div className="flex h-full w-full items-center justify-center px-4">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4 px-4">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_45%_at_50%_45%,rgb(34_211_238/0.08),transparent_70%)]"
       />
+      {/* Plain line for non-technical visitors. Inside [data-boot-screen]: it leaves with the
+          screen (CRT power-off), never on its own. */}
+      <p className="relative text-sm text-muted">{site.boot.plainLine}</p>
 
       <div className="glass glow-edge relative w-full max-w-2xl overflow-hidden rounded-2xl">
         <div className="flex items-center gap-2 border-b border-line px-5 py-3">

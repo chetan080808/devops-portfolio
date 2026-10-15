@@ -43,6 +43,7 @@ export const site: SiteContent = {
     ],
     readyLine: "pod/portfolio-0 1/1 Running",
     fallbackLine: "[ OK ] continuing in background",
+    plainLine: "Loading Chetan's portfolio…",
   },
 
   nav: [
@@ -65,6 +66,27 @@ export const site: SiteContent = {
       src: "/hero/whale-cluster-mobile.webp",
       alt: "A low-poly whale carrying three containers swims above a glowing hexagonal cluster with a ship's wheel.",
     },
+    scrollHint: "Scroll to explore my work",
+  },
+
+  sections: {
+    deployments: { mouse: "Projects I've built. Click one for details.", touch: "Projects I've built. Tap one for details." },
+    metrics: "My skills and results, shown as a monitoring dashboard.",
+    contact: "Email me or connect on LinkedIn using the buttons, or try the terminal if you're curious.",
+  },
+
+  chaos: {
+    button: "Simulate a server crash",
+    busy: "Crash in progress…",
+    note: "Watch the system heal itself",
+    srHint: "Simulates a crash of a few servers in the 3D cluster; they restart on their own.",
+    summary: "{n} servers crashed and recovered automatically in {s} seconds. This is called self-healing.",
+  },
+
+  terminal: {
+    placeholder: "Type help and press Enter…",
+    tryLabel: "Try:",
+    autoCommand: "whoami",
   },
 
   projects: [
@@ -151,6 +173,7 @@ export const site: SiteContent = {
     {
       id: "edu",
       stage: "build",
+      plainTitle: "Education",
       title: "B.Sc. in Information Technology",
       org: "SIES College of Arts, Science and Commerce, Mumbai",
       period: "2022 – 2025",
@@ -161,6 +184,7 @@ export const site: SiteContent = {
     {
       id: "hexaware",
       stage: "test",
+      plainTitle: "Cloud Support Engineer",
       title: "Cloud Support Engineer",
       org: "Hexaware Technologies, Mumbai",
       period: "Feb 2024 – Nov 2025",
@@ -174,6 +198,7 @@ export const site: SiteContent = {
     {
       id: "freelance",
       stage: "deploy",
+      plainTitle: "Freelance AWS Engineer",
       title: "AWS Cloud Engineer",
       org: "Freelance",
       period: "Dec 2025 – Feb 2026",
@@ -184,6 +209,7 @@ export const site: SiteContent = {
     {
       id: "cancermitr",
       stage: "monitor",
+      plainTitle: "DevOps Engineer — current",
       title: "DevOps Engineer",
       org: "CancerMitr",
       period: "Feb 2026 – Present",
@@ -201,9 +227,14 @@ export const site: SiteContent = {
     // Parallel branch drawn under the `alongside` stage
     parallel: {
       label: "side-projects",
+      plainLabel: "Side projects",
       alongside: "cancermitr",
       jobs: ["ScanCure AI", "Car Rental Portal on Kubernetes", "This portfolio"],
     },
+    intro: "My career, shown as a CI/CD pipeline: each stage is one step of my journey.",
+    legend: { done: "Completed", current: "Current", queued: "Not started" },
+    stageHint: { mouse: "Click a stage for details", touch: "Tap a stage for details" },
+    buildHint: "Replay my career pipeline",
   },
 
   dashboard: [

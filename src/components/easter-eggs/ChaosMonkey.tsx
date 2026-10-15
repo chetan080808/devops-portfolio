@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useChaosRun, useChaosTime } from "@/hooks/useChaos";
 import { CHAOS, chaos, healedAt, killAt, podName, runDuration, type ChaosRun } from "@/lib/chaos";
 import { cn } from "@/lib/cn";
+import { site } from "@/content/site";
 import { heroLayout } from "@/components/three/heroLayout";
 import { StatusDot } from "@/components/ui/StatusDot";
 
@@ -22,8 +23,12 @@ const toneClass: Record<Tone, string> = {
   ok: "text-success",
 };
 
-/** How long the log stays up after the cluster has healed (s). */
-const LINGER = 3.2;
+/** How long the log stays up after the cluster has healed (s): long enough to read the summary. */
+const LINGER = 6;
+
+/** Plain-language result of a run, from the same timeline the cluster plays. */
+const summaryFor = (run: ChaosRun) =>
+  site.chaos.summary.replace("{n}", String(run.victims.length)).replace("{s}", runDuration(run).toFixed(1));
 
 /** The run as kubectl-ish log lines, timed to the same timeline the 3D cluster plays. */
 function logFor(run: ChaosRun): LogLine[] {
@@ -47,7 +52,7 @@ function logFor(run: ChaosRun): LogLine[] {
   ];
 }
 
-/** "Release chaos monkey" button for the hero stage. Disabled while a run is in progress. */
+/** Chaos Monkey button for the hero stage ("Simulate a server crash"). Disabled while a run is in progress. */
 export function ChaosMonkeyButton({ disabled, className }: { disabled?: boolean; className?: string }) {
   const run = useChaosRun();
   const busy = !!run;
@@ -68,9 +73,9 @@ export function ChaosMonkeyButton({ disabled, className }: { disabled?: boolean;
     >
       {/* Touch: the hit area reaches 44 px tall without changing the look */}
       <span aria-hidden="true" className="absolute inset-x-0 -inset-y-[11px]" />
-      {busy ? "chaos in progress…" : "release chaos monkey"}
+      {busy ? site.chaos.busy : site.chaos.button}
       <span id="chaos-hint" className="sr-only">
-        Easter egg: crashes a few cluster nodes, which then restart on their own.
+        {site.chaos.srHint}
       </span>
     </button>
   );
@@ -194,6 +199,11 @@ function RunLog({ run }: { run: ChaosRun }) {
           </p>
         ))}
       </div>
+      {/* Plain summary once healed. Its 3 lines are reserved from the start, so the box (and the
+          area the whale keeps clear of) never changes size. */}
+      <p aria-live="polite" className="mt-1.5 h-[3.4rem] border-t border-line pt-1.5 font-sans text-[0.72rem] leading-snug text-fg">
+        {healed ? summaryFor(run) : ""}
+      </p>
     </>
   );
 }

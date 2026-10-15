@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { StageNode } from "./JenkinsJob";
+import { StageLegend, StageNode } from "./JenkinsJob";
 import type { PipelineStage } from "./model";
 import { useRunSync } from "./useRunSync";
 
 /** Node radius, main / branch row centres, label room — px */
 const R = 14;
 const Y1 = 26;
-const Y2 = 108;
-const HEIGHT = 168;
+const Y2 = 118;
+const HEIGHT = 178;
 /** Corner radius of the fork / rejoin connectors */
 const CORNER = 12;
 
@@ -88,7 +88,12 @@ export function StageGraph({ stages, onOpen }: { stages: PipelineStage[]; onOpen
               </div>
             );
           })}
+        {/* Bottom-left, beside the branch row (the branch only ever sits under a later stage) */}
+        <StageLegend className="absolute bottom-0 left-0 max-w-[72%]" />
       </div>
+
+      {/* Mobile legend, above the list */}
+      <StageLegend className="px-4 pt-4 md:hidden" />
 
       {/* Mobile: PipelineScroll runs the stages as each row crosses a reading line and grows the
           green fill down the rail (transform only); server HTML / reduced motion = final state,

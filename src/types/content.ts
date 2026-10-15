@@ -45,9 +45,17 @@ export interface Project {
 
 export type StageKind = "build" | "test" | "deploy" | "monitor" | "release";
 
+/** Text for each pointer: "Click …" with a mouse, "Tap …" on touch (picked by CSS, no flash). */
+export interface PointerText {
+  mouse: string;
+  touch: string;
+}
+
 export interface Milestone {
   id: string;
   stage: StageKind;
+  /** Plain-language name of the step (main label in the pipeline graph) */
+  plainTitle: string;
   title: string;
   org: string;
   period: string;
@@ -139,6 +147,8 @@ export interface SiteContent {
     readyLine: string;
     /** Closing line when the gate's safety net ends the boot before React takes over. */
     fallbackLine: string;
+    /** Plain line above the boot terminal, for non-technical visitors */
+    plainLine: string;
   };
   nav: Link[];
   hero: {
@@ -149,6 +159,29 @@ export interface SiteContent {
     stats: { label: string; value: string | null }[];
     /** Phones (and no-GPU browsers) show a still of the 3D scene instead of loading it */
     staticImage: { src: string; alt: string };
+    /** Hint at the bottom of the hero (desktop) */
+    scrollHint: string;
+  };
+  /** Plain-language line under each section's technical heading */
+  sections: {
+    deployments: PointerText;
+    metrics: string;
+    contact: string;
+  };
+  /** Chaos Monkey (hero button + run log). `summary`: {n} = servers crashed, {s} = seconds to heal */
+  chaos: {
+    button: string;
+    busy: string;
+    note: string;
+    srHint: string;
+    summary: string;
+  };
+  /** Contact terminal */
+  terminal: {
+    placeholder: string;
+    tryLabel: string;
+    /** Typed and run once when the section first comes into view (null = off) */
+    autoCommand: string | null;
   };
   projects: Project[];
   experience: Milestone[];
@@ -157,7 +190,13 @@ export interface SiteContent {
     job: string;
     branch: string;
     /** Parallel branch running alongside one stage, with its own job names */
-    parallel: { label: string; alongside: string; jobs: string[] };
+    parallel: { label: string; plainLabel: string; alongside: string; jobs: string[] };
+    /** One-line plain intro under the section heading */
+    intro: string;
+    legend: { done: string; current: string; queued: string };
+    stageHint: PointerText;
+    /** Plain hint next to the Build Now button */
+    buildHint: string;
   };
   dashboard: DashboardPanel[];
   socials: SocialLink[];

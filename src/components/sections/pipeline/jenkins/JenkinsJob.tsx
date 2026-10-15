@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { site } from "@/content/site";
 import { cn } from "@/lib/cn";
+import { PointerText } from "@/components/ui/PointerText";
 import { ScrollTrigger } from "@/lib/gsap";
 import { BuildConsole } from "./BuildConsole";
 import { ConsolePanel } from "./ConsolePanel";
@@ -72,7 +73,7 @@ export function JenkinsJob() {
   }, []);
 
   return (
-    <div ref={ref} data-jenkins className="glass overflow-hidden rounded-2xl">
+    <div ref={ref} data-jenkins className="glass group/job overflow-hidden rounded-2xl">
       {/* Job header */}
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1.5 border-b border-line px-4 py-2.5 sm:px-5 sm:py-3">
         <p className="font-mono text-[0.8rem] text-fg sm:text-sm">
@@ -80,6 +81,9 @@ export function JenkinsJob() {
           <span className="text-faint">·</span> <span className="text-cyan">Build #{site.experience.length}</span>
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <span id="build-now-hint" className="text-[0.72rem] text-faint max-sm:order-last">
+            {site.pipeline.buildHint}
+          </span>
           <p className="flex items-center gap-2 font-mono text-xs">
             {running ? (
               <>
@@ -99,6 +103,7 @@ export function JenkinsJob() {
             onClick={startBuild}
             // aria-disabled, not disabled: a disabled button would drop keyboard focus mid-build.
             aria-disabled={building}
+            aria-describedby="build-now-hint"
             className={cn(
               "inline-flex min-h-10 items-center gap-1.5 rounded-md border border-line-strong bg-white/[0.04] px-3 font-mono text-xs text-fg sm:min-h-8",
               "transition-[color,border-color,transform] duration-150 hover:border-cyan/50 hover:text-cyan focus-visible:ring-2 focus-visible:ring-cyan active:scale-95 motion-reduce:transform-none",
@@ -117,9 +122,9 @@ export function JenkinsJob() {
         </div>
       </div>
 
-      {/* Build console: phones below the stage list (in the flow); md–lg over the Stage View
-          (200 px = StageGraph's desktop block: mt-5 + 168 + mb-3); lg+ a right-hand column next
-          to graph + Stage View. md+ never changes the job's height (the job may be pinned).
+      {/* Build console: phones below the stage list (in the flow); md–lg over the Stage View and
+          the graph's branch row (from 110 px: the main row's labels end at 106; ~8.4 log lines);
+          lg+ a right-hand column next to graph + Stage View. md+ never changes the job's height (the job may be pinned).
           flow-root: the graph's top margin must stay inside (it collapsed through, so the console
           started 20 px low). */}
       <div className="relative flow-root">
@@ -133,13 +138,44 @@ export function JenkinsJob() {
             stages={stages}
             onDone={buildDone}
             onClose={closeConsole}
-            className="h-60 border-t border-line md:absolute md:inset-x-0 md:top-[200px] md:bottom-0 md:h-auto lg:top-0 lg:left-auto lg:w-[min(36%,26rem)] lg:border-t-0 lg:border-l"
+            className="h-60 border-t border-line md:absolute md:inset-x-0 md:top-[110px] md:bottom-0 md:h-auto lg:top-0 lg:left-auto lg:w-[min(36%,26rem)] lg:border-t-0 lg:border-l"
           />
         )}
       </div>
 
       <ConsolePanel stage={open} onClose={close} />
     </div>
+  );
+}
+
+/** Plain-language name of a stage (site.ts), e.g. "Education" for the Build stage. */
+const plainLabel = (stage: PipelineStage) => stage.milestone?.plainTitle ?? site.pipeline.parallel.plainLabel;
+
+/** Legend for the stage nodes + "Click / Tap a stage for details". "Not started" only while a stage is queued. */
+export function StageLegend({ className }: { className?: string }) {
+  const { legend, stageHint } = site.pipeline;
+  return (
+    <p className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.72rem] text-muted", className)}>
+      <span className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="flex size-3.5 items-center justify-center rounded-full bg-[#2fa84f]">
+          <svg viewBox="0 0 16 16" className="size-2.5 text-white">
+            <path d="M3.5 8.5 L6.5 11.5 L12.5 4.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        {legend.done}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="size-3.5 rounded-full bg-[#4a90e2]" />
+        {legend.current}
+      </span>
+      <span className="hidden items-center gap-1.5 group-data-[queued]/job:inline-flex">
+        <span aria-hidden="true" className="size-3.5 rounded-full border-2 border-[#8b95a8]" />
+        {legend.queued}
+      </span>
+      <span className="text-faint">
+        <PointerText text={stageHint} />
+      </span>
+    </p>
   );
 }
 
@@ -166,7 +202,7 @@ export function StageNode({
       data-slot={stage.slot}
       {...(stage.parallelTo ? {} : { "data-main": "" })}
       onClick={() => onOpen(stage)}
-      aria-label={`${stage.label}: open console output`}
+      aria-label={`${plainLabel(stage)} (${stage.label}): open details`}
       style={style}
       className={cn(
         "group/st flex items-center gap-3 rounded-lg",
@@ -189,13 +225,16 @@ export function StageNode({
         </svg>
         <span aria-hidden="true" className="hidden size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent group-data-[status=running]/st:block" />
       </span>
+      {/* Plain step name first; the Jenkins stage name is the small mono label under it. */}
       <span className="min-w-0">
-        <span className="block font-mono text-xs text-fg">{stage.label}</span>
         <span
           title={stage.milestone?.title}
-          className={cn("block text-[0.7rem] text-muted", layout === "column" ? "mx-auto line-clamp-2 max-w-[10.5rem] leading-snug" : "truncate")}
+          className={cn("block text-[0.8rem] leading-snug font-medium text-fg", layout === "column" && "mx-auto line-clamp-2 max-w-[10.5rem]")}
         >
-          {stage.milestone ? stage.milestone.title : `${site.pipeline.parallel.jobs.length} jobs`}
+          {plainLabel(stage)}
+        </span>
+        <span className="block font-mono text-[0.68rem] text-muted">
+          {stage.milestone ? stage.milestone.stage : `parallel · ${site.pipeline.parallel.jobs.length} jobs`}
         </span>
       </span>
     </button>

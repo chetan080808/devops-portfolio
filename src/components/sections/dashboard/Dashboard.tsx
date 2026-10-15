@@ -27,7 +27,7 @@ export function Dashboard() {
   return (
     <Section id="metrics" aria-labelledby="metrics-title">
       <SectionHeader id="metrics-title" index="03" label="open dashboards/skills" title="Observability">
-        Skills, reported like production metrics.
+        {site.sections.metrics}
       </SectionHeader>
 
       <div className="glass mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl px-3 py-2 font-mono text-xs sm:mb-4 sm:px-4 sm:py-2.5">

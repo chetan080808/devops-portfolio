@@ -1,3 +1,4 @@
+import { site } from "@/content/site";
 import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { JenkinsJob } from "./jenkins/JenkinsJob";
@@ -12,7 +13,7 @@ export function Pipeline() {
   return (
     <Section id="pipeline" aria-labelledby="pipeline-title">
       <SectionHeader id="pipeline-title" index="02" label="jenkins · career-pipeline" title="Pipeline">
-        Every milestone is a stage. The last one is still running. Click a stage for its console output.
+        {site.pipeline.intro}
       </SectionHeader>
       <JenkinsJob />
       <PipelineScroll />

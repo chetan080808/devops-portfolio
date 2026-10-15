@@ -116,8 +116,8 @@ export function BuildConsole({
 
   const current = stages.find((s) => s.final === "running" && !s.parallelTo);
   return (
-    <div ref={ref} className={cn("flex flex-col bg-[#070a12]/95", className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
+    <div ref={ref} className={cn("flex flex-col bg-[#070a12]", className)}>
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
         <p className="truncate font-mono text-[0.72rem] text-muted">
           <span className="text-cyan">#{site.experience.length}</span> » <span className="text-fg">Console Output</span>
         </p>

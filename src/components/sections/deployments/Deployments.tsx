@@ -1,6 +1,7 @@
 import { site } from "@/content/site";
 import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { PointerText } from "@/components/ui/PointerText";
 import { MiniDropScroll } from "./MiniDropScroll";
 import { ProjectGrid } from "./ProjectGrid";
 import { withoutTodos } from "@/lib/todo";
@@ -11,7 +12,7 @@ export function Deployments() {
   return (
     <Section id="deployments" aria-labelledby="deployments-title">
       <SectionHeader id="deployments-title" index="01" label="kubectl get deployments -n portfolio" title="Deployments">
-        Each project ships as its own container. Inspect one to see the problem, architecture and results.
+        <PointerText text={site.sections.deployments} />
       </SectionHeader>
       <p className="mb-6 font-mono text-xs text-faint">
         NAME · READY · STATUS —{" "}

@@ -33,6 +33,8 @@ export function applyRun(root: HTMLElement | null) {
       if (status === "passed") passedMain.add(el.dataset.stageId!);
     }
   });
+  // The legend's "Not started" entry only shows while some stage is queued.
+  root.toggleAttribute("data-queued", root.querySelector('[data-stage-id][data-status="queued"]') !== null);
   const counter = root.querySelector<HTMLElement>("[data-passed-count]");
   const text = `${passedMain.size}/${mainIds.size} stages passed`;
   if (!counter || counter.textContent === text) return;

@@ -82,7 +82,7 @@ export function Hero() {
         href="#deployments"
         className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 font-mono text-[0.68rem] text-faint transition-colors hover:text-cyan md:flex"
       >
-        scroll to deploy
+        {site.hero.scrollHint}
         <span
           className="h-8 w-px bg-gradient-to-b from-cyan to-transparent"
           aria-hidden="true"
