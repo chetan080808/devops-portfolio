@@ -594,3 +594,32 @@ Updated after every checkpoint.
   any older commit of main, which is a deploy, not code execution.
 - **Verified:** terraform plan (1 add, 1 change) shown and approved; run #17 (20a42ca) deployed via
   the document ("commit ... is on main (identical)", rollout complete), smoke test green.
+
+### D-48 Build Now: replay the pipeline with a streaming console (Phase 8)
+
+- **Context:** first Phase 8 item. A Jenkins-style "Build Now" in the job header replays the run
+  and streams its console. Must keep 60 fps, respect reduced motion, work on phones, and must not
+  break the desktop pin (the job is pinned by ScrollTrigger while the scroll runs the stages).
+- **Options for the console:** a modal (hides the stages it is supposed to show running); a
+  floating panel (covers the Stage View on a 1280x495 laptop); inside the job card.
+- **Choice:** inside the card, without ever changing the job's height on md+: lg+ a right-hand
+  column next to graph + Stage View (the left side narrows; Stage View duration cells truncate so
+  row heights stay fixed); md-lg over the Stage View; phones in the flow below the stage list (no
+  pin there), followed by `ScrollTrigger.refresh()` and a scroll into view.
+- **Run driver:** one rAF loop (`jenkins/BuildConsole.tsx`) walks `pipelineRun.t` along a timed
+  script (`buildScript` / `scriptT` in model.ts, ~6.5 s) and calls the existing `applyRun`, so
+  header, graph, Stage View and phone rail stay in sync as with scrolling. Per frame: attribute
+  writes only when a status changes, one transform (phone rail; node positions measured once),
+  and a React update only when a new log line appears. Step capped at 50 ms (a hidden tab pauses
+  the build). Log content = the per-stage console lines from site.ts; "Started by user anonymous"
+  (the visitor); the current stage's block stays open and the log ends "Running...".
+- **Scroll vs build:** `pipelineRun.manual` - after a Build Now the build owns the states for the
+  rest of the visit; scrolling back through the pin no longer resets stages to queued.
+- **Reduced motion:** final states and the full log at once. The button uses `aria-disabled`
+  while building (a disabled button drops keyboard focus); closing the console returns focus to it.
+- **Measured (local prod build):** 1280x495 pinned mid-run: 60 fps, p95 17.2 ms, job height
+  386 -> 386, no scroll jump; 390x760 phone: 59 fps, p95 17.1 ms, one 133 ms frame at open (the
+  ScrollTrigger refresh), rail fill follows the stages. Tablet (1000 px): console has ~4 lines
+  (the Stage View's area); acceptable, the graph above shows the run.
+- **Bug found:** at md-lg the console started 20 px low: the graph's top margin collapsed through
+  the wrapper, so the 200 px offset was measured from the wrong edge. Fixed with `flow-root`.
