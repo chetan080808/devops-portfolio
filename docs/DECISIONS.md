@@ -656,3 +656,43 @@ Updated after every checkpoint.
   (was ~4), solid background (the branch node showed through at 95%).
 - **Measured (local prod build):** Build Now 60 fps at 1280x495 and at 360 px (p95 17.0-17.2 ms);
   no horizontal overflow at 360; job height unchanged by the console at 800 / 1000 / 1280.
+
+### D-50 Build numbers, crash pill, post-process AA, terminal pacing, HSTS on www
+
+- **Build numbers:** the career run is build #n (n = milestones); every Build Now press is the next
+  number for the browser session (`jenkins/buildNumber.ts`, sessionStorage `pf-build-number`,
+  `useSyncExternalStore` with the base number as server snapshot, so no hydration mismatch). Shown
+  in the job header, the Stage View build cell, the console header and the log's
+  `Start of Pipeline (… #n)` line. Verified #4 -> #5 -> #6 in all four places.
+- **Crash button:** an outlined amber pill with a warning triangle (amber = "try this", not red =
+  error), glow pulse every 4.2 s on its own layer (WAAPI opacity only, compositor work) until the
+  first press (sessionStorage `pf-chaos-tried`); no pulse with reduced motion; 44 px hit area.
+  **Placement bug found:** at 1280x495 the fixed 3D canvas drew the cluster over the bigger pill
+  (it already overlapped the old button). On lg+ the stage is now 3rem shorter
+  (`calc(100svh-10.5rem)`, min 19rem) and the status row sits just below it (`top-full`), where
+  heroMaskPass already hides the canvas, so the cluster can never cover it. Below lg unchanged
+  (row inside the stage; 360 px: pill on its own row, clear of the nodes).
+- **AA (the whale flicker):** the composer has no MSAA (it halved the fps at 1920x1080, Phase 6),
+  so thin neon edges crawled while moving. Options measured at 1920x1080 (local prod build,
+  `scripts/perf/trace.mjs --trace=0 --size=1920x1080`, alternating rounds, noisy machine with
+  ~600-900 MB free RAM): idle fps no AA ~58.8, FXAA ~58, SMAA ~52 (SMAA also lower while
+  scrolling). **Choice: FXAA** (one pass, after OutputPass so it works on the display image,
+  before the hero mask). `?aa=off|fxaa|smaa` stays as an A/B switch. Visual: fin and edge lines are
+  smoother; the minis' fine detail is slightly softer. Limitation: bloom is still computed from
+  the non-anti-aliased image, so a little halo shimmer can remain. Desktop 1280x495 idle after the
+  change: 59.9 fps, p95 16.8 ms.
+- **Other flicker causes checked:** a coplanar-overlap scan of all GLBs (same-facing triangles
+  within 2 mm, true 2D overlap test) found only duplicate faces of the same material (invisible)
+  and 0.5 mm gaps (door vs frame, whale edge highlight), ~5x the depth precision at the hero
+  distance (near 0.1 / far 60 -> ~0.1 mm at 13 units). No z-fighting between different surfaces.
+- **Terminal pacing:** `whoami` starts only when the whole terminal is visible below the navbar
+  (4% slack for short screens where it only just fits), the cursor blinks 600 ms with the
+  placeholder hidden, then 130 ms per character with a cursor that follows the text (positioned in
+  `ch`, matches the text end exactly at 360 px), 450 ms, Enter. Still no focus or scroll; any key,
+  input or chip tap cancels it.
+- **"Not secure" report:** server side verified clean: http apex/www -> 301 to https apex, valid
+  Let's Encrypt cert (apex + www, to 2027-01-11), HSTS one year, 0 http:// resources (HTML, chunks,
+  and all 17 runtime requests on a full scroll of the live page). One gap fixed: the www -> apex
+  redirect over HTTPS skipped the security-headers middleware (a redirect ends the chain), so it
+  had no HSTS; headers now run first. The browser warning is most likely state in that Chrome
+  profile (e.g. a certificate exception from before the production cert).
