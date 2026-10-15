@@ -10,6 +10,22 @@ import { useModalLock } from "@/hooks/useModalLock";
 
 const noopSubscribe = () => () => {};
 
+/** One console log line, Jenkins-style: pipeline steps dim, shell commands bright. */
+export function ConsoleLine({ line }: { line: string }) {
+  return <span className={line.startsWith("[Pipeline]") ? "block text-faint" : line.startsWith("+") ? "block text-fg" : "block"}>{line}</span>;
+}
+
+/** Last console line: still running (blinking cursor) or finished. */
+export function ConsoleEnd({ running }: { running: boolean }) {
+  return running ? (
+    <span className="block text-warning">
+      Running…<span className="ml-1 inline-block animate-blink">▍</span>
+    </span>
+  ) : (
+    <span className="block text-success">Finished: SUCCESS</span>
+  );
+}
+
 /** Jenkins "Console Output" for one stage, as a modal. */
 export function ConsolePanel({ stage, onClose }: { stage: PipelineStage | null; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -70,17 +86,10 @@ export function ConsolePanel({ stage, onClose }: { stage: PipelineStage | null; 
             </div>
             <pre tabIndex={0} aria-label="Console log" className="overflow-auto overscroll-contain px-4 py-4 font-mono text-[0.78rem] leading-6 whitespace-pre-wrap text-muted">
               {consoleLines(stage).map((line, i) => (
-                <span key={i} className={line.startsWith("[Pipeline]") ? "block text-faint" : line.startsWith("+") ? "block text-fg" : "block"}>
-                  {line}
-                </span>
+                <ConsoleLine key={i} line={line} />
               ))}
-              {running ? (
-                <span className="block text-warning">
-                  Running…<span className="ml-1 inline-block animate-blink">▍</span>
-                </span>
-              ) : (
-                <span className="block text-success">Finished: SUCCESS</span>
-              )}
+              <ConsoleEnd running={running} />
+
             </pre>
           </motion.div>
         </motion.div>

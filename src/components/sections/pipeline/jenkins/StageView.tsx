@@ -29,7 +29,8 @@ const todoTitle = (duration: string | null) => (duration || !SHOW_TODOS ? undefi
 function DurationCell({ stage }: { stage: PipelineStage }) {
   const duration = useDuration(stage.milestone);
   return (
-    <td className="text-center text-muted" title={todoTitle(duration)}>
+    // nowrap: next to the build console (lg) the cells are narrower; the row height must not change.
+    <td className="truncate text-center text-muted" title={todoTitle(duration)}>
       {duration ?? "—"}
     </td>
   );
@@ -44,14 +45,23 @@ function PassedDuration({ stage }: { stage: PipelineStage }) {
  * build row with a build-info cell (#n + date) and one cell per stage — light green with the
  * duration when passed, animated blue stripes while running, plain grey while queued.
  */
-export function StageView({ stages, onOpen }: { stages: PipelineStage[]; onOpen: (s: PipelineStage) => void }) {
+export function StageView({
+  stages,
+  onOpen,
+  covered = false,
+}: {
+  stages: PipelineStage[];
+  onOpen: (s: PipelineStage) => void;
+  /** The build console sits on top of it (md–lg only; lg+ shows them side by side) */
+  covered?: boolean;
+}) {
   const build = site.experience.length;
   const date = useToday();
   const ref = useRef<HTMLDivElement>(null);
   // The date hydrating (and any other re-render) resets the cells to their final status.
   useRunSync(ref);
   return (
-    <div ref={ref} className="hidden border-t border-line px-5 py-3 md:block">
+    <div ref={ref} className={cn("hidden border-t border-line px-5 py-3 md:block", covered && "md:max-lg:invisible")}>
       <table className="w-full table-fixed border-separate border-spacing-x-1 border-spacing-y-1 font-mono text-[0.72rem]">
         <caption className="sr-only">Stage View</caption>
         <thead>

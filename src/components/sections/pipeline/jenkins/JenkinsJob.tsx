@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { site } from "@/content/site";
 import { cn } from "@/lib/cn";
+import { ScrollTrigger } from "@/lib/gsap";
+import { BuildConsole } from "./BuildConsole";
 import { ConsolePanel } from "./ConsolePanel";
 import { StageGraph } from "./StageGraph";
 import { StageView } from "./StageView";
@@ -27,6 +29,34 @@ export function JenkinsJob() {
   const passed = mainStages.filter((s) => s.final === "passed").length;
   const ref = useRef<HTMLDivElement>(null);
 
+  // Build Now: `build` keys a fresh console per build; the console stays open after the run.
+  const [build, setBuild] = useState(0);
+  const [building, setBuilding] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const buildNowRef = useRef<HTMLButtonElement>(null);
+  const startBuild = () => {
+    if (building) return;
+    setBuild((b) => b + 1);
+    setBuilding(true);
+    setConsoleOpen(true);
+  };
+  const buildDone = useCallback(() => setBuilding(false), []);
+  const closeConsole = useCallback(() => {
+    setConsoleOpen(false);
+    setBuilding(false);
+    buildNowRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  // Phones: the console sits in the flow below the stage list and changes the page height, so
+  // every ScrollTrigger below must re-measure. (md+: it overlays a fixed-size area; no refresh —
+  // a refresh while the job is pinned would jump the page.)
+  const consoleShown = useRef(false);
+  useEffect(() => {
+    if (!consoleOpen && !consoleShown.current) return;
+    consoleShown.current = true;
+    if (window.matchMedia("(max-width: 767px)").matches) ScrollTrigger.refresh();
+  }, [consoleOpen]);
+
   // Re-derive every status after each render (React would otherwise show the final states).
   useRunSync(ref);
 
@@ -49,23 +79,64 @@ export function JenkinsJob() {
           {site.pipeline.job} <span className="text-faint">»</span> {site.pipeline.branch}{" "}
           <span className="text-faint">·</span> <span className="text-cyan">Build #{site.experience.length}</span>
         </p>
-        <p className="flex items-center gap-2 font-mono text-xs">
-          {running ? (
-            <>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <p className="flex items-center gap-2 font-mono text-xs">
+            {running ? (
+              <>
+                <span aria-hidden="true" className="size-3 animate-spin rounded-full border-2 border-[#4a90e2] border-t-transparent" />
+                <span className="text-[#6aa9f0]">In progress</span>
+              </>
+            ) : (
+              <span className="text-success">✓ Success</span>
+            )}
+            <span className="text-muted">
+              · <span data-passed-count>{`${passed}/${mainStages.length} stages passed`}</span>
+            </span>
+          </p>
+          <button
+            ref={buildNowRef}
+            type="button"
+            onClick={startBuild}
+            // aria-disabled, not disabled: a disabled button would drop keyboard focus mid-build.
+            aria-disabled={building}
+            className={cn(
+              "inline-flex min-h-10 items-center gap-1.5 rounded-md border border-line-strong bg-white/[0.04] px-3 font-mono text-xs text-fg sm:min-h-8",
+              "transition-[color,border-color,transform] duration-150 hover:border-cyan/50 hover:text-cyan focus-visible:ring-2 focus-visible:ring-cyan active:scale-95 motion-reduce:transform-none",
+              "aria-disabled:cursor-progress aria-disabled:text-muted aria-disabled:hover:border-line-strong aria-disabled:active:scale-100",
+            )}
+          >
+            {building ? (
               <span aria-hidden="true" className="size-3 animate-spin rounded-full border-2 border-[#4a90e2] border-t-transparent" />
-              <span className="text-[#6aa9f0]">In progress</span>
-            </>
-          ) : (
-            <span className="text-success">✓ Success</span>
-          )}
-          <span className="text-muted">
-            · <span data-passed-count>{`${passed}/${mainStages.length} stages passed`}</span>
-          </span>
-        </p>
+            ) : (
+              <svg viewBox="0 0 16 16" aria-hidden="true" className="size-3 text-success">
+                <path d="M4 2.5 L13 8 L4 13.5 Z" fill="currentColor" />
+              </svg>
+            )}
+            {building ? "Building…" : "Build Now"}
+          </button>
+        </div>
       </div>
 
-      <StageGraph stages={stages} onOpen={setOpen} />
-      <StageView stages={stages} onOpen={setOpen} />
+      {/* Build console: phones below the stage list (in the flow); md–lg over the Stage View
+          (200 px = StageGraph's desktop block: mt-5 + 168 + mb-3); lg+ a right-hand column next
+          to graph + Stage View. md+ never changes the job's height (the job may be pinned).
+          flow-root: the graph's top margin must stay inside (it collapsed through, so the console
+          started 20 px low). */}
+      <div className="relative flow-root">
+        <div className={cn(consoleOpen && "lg:pr-[min(36%,26rem)]")}>
+          <StageGraph stages={stages} onOpen={setOpen} />
+          <StageView stages={stages} onOpen={setOpen} covered={consoleOpen} />
+        </div>
+        {consoleOpen && (
+          <BuildConsole
+            key={build}
+            stages={stages}
+            onDone={buildDone}
+            onClose={closeConsole}
+            className="h-60 border-t border-line md:absolute md:inset-x-0 md:top-[200px] md:bottom-0 md:h-auto lg:top-0 lg:left-auto lg:w-[min(36%,26rem)] lg:border-t-0 lg:border-l"
+          />
+        )}
+      </div>
 
       <ConsolePanel stage={open} onClose={close} />
     </div>

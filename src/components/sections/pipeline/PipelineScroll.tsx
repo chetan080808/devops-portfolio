@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { site } from "@/content/site";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
-import { applyRun, pipelineRun } from "./jenkins/runState";
+import { applyRun, pipelineRun, railScale } from "./jenkins/runState";
 
 /** Never pin higher than this (just below the fixed navbar), px */
 const PIN_TOP = 84;
@@ -29,6 +29,8 @@ export function PipelineScroll() {
       // Never two run triggers (e.g. after a hot reload): they would fight over the states.
       ScrollTrigger.getById(TRIGGER_ID)?.kill();
       const set = (p: number) => {
+        // A visitor's Build Now owns the run from then on.
+        if (pipelineRun.manual) return;
         pipelineRun.t = p * slots;
         applyRun(job);
       };
@@ -105,14 +107,13 @@ function runOnPhones(job: HTMLElement) {
   };
 
   const update = () => {
+    if (pipelineRun.manual) return;
     const ys = nodes().map(centre);
-    const line = window.innerHeight * READ_LINE;
-    pipelineRun.t = runAt(ys, line);
+    const t = runAt(ys, window.innerHeight * READ_LINE);
+    pipelineRun.t = t;
     applyRun(job);
     // Fill reaches node i exactly when t = i (the node turns from queued to running).
-    const span = ys[ys.length - 1] - ys[0];
-    const reach = Math.min(Math.max(line, ys[0]), ys[ys.length - 1]) - ys[0];
-    fill.style.transform = `scaleY(${span > 0 ? reach / span : 0})`;
+    fill.style.transform = `scaleY(${railScale(ys, t)})`;
   };
 
   ScrollTrigger.getById(TRIGGER_ID)?.kill();
@@ -135,10 +136,10 @@ function runOnPhones(job: HTMLElement) {
     st.kill();
     pipelineRun.t = null;
     applyRun(job);
+    fill.style.removeProperty("transform");
     rail.style.removeProperty("top");
     rail.style.removeProperty("bottom");
     rail.style.removeProperty("height");
-    fill.style.removeProperty("transform");
   };
 }
 

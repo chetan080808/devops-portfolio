@@ -7,7 +7,11 @@
  */
 export type StageStatus = "queued" | "running" | "passed";
 
-export const pipelineRun: { t: number | null } = { t: null };
+/**
+ * `manual`: a visitor started a build (Build Now). From then on the build owns `t`; the scroll
+ * drivers (PipelineScroll) leave it alone for the rest of the visit.
+ */
+export const pipelineRun: { t: number | null; manual: boolean } = { t: null, manual: false };
 
 export function statusAt(t: number | null, slot: number, final: StageStatus): StageStatus {
   if (t === null) return final;
@@ -36,4 +40,17 @@ export function applyRun(root: HTMLElement | null) {
   const node = counter.firstChild;
   if (node instanceof Text && counter.childNodes.length === 1) node.nodeValue = text;
   else counter.textContent = text;
+}
+
+/**
+ * Phones: how far the green rail fill reaches (0–1) for run position `t`, from the node centres
+ * `ys` (px, top to bottom; any common offset). The fill reaches node i exactly when t = i.
+ */
+export function railScale(ys: number[], t: number) {
+  const last = ys.length - 1;
+  const span = last > 0 ? ys[last] - ys[0] : 0;
+  if (span <= 0 || t <= 0) return 0;
+  if (t >= last) return 1;
+  const i = Math.floor(t);
+  return (ys[i] + (t - i) * (ys[i + 1] - ys[i]) - ys[0]) / span;
 }
