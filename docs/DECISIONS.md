@@ -696,3 +696,36 @@ Updated after every checkpoint.
   redirect over HTTPS skipped the security-headers middleware (a redirect ends the chain), so it
   had no HSTS; headers now run first. The browser warning is most likely state in that Chrome
   profile (e.g. a certificate exception from before the production cert).
+
+### D-51 Phase 8 polish batch: living cards, real dashboard refresh, typed commands, hire-me whale
+
+- **Living project cards:** each landed container gets a status LED in its status colour (green
+  Running, cyan Completed), steady with a quick double blink every 2.6 s (`led-blink`, opacity
+  only). Desktop shows 3D minis, so the LED is 3D there too: an unlit dot + additive halo sprite on
+  the roof corner in MiniDrop's overlay scene (no bloom in that pass), visible only once landed,
+  blinking on the same curve. Hover: the landed mini lifts 7 px and turns 0.16 rad / tilts
+  (damped), read from the card's `:hover` each frame. 2D container (phones, tablets, reduced
+  motion): the same LED, and an inner wrapper lifts 6 px / turns 2 deg on hover or press / tap
+  (`[data-mini-art]` itself is animated by MiniDropScroll on phones, so it can't carry the hover
+  transform). Precompile now also warms sprites. Reduced motion: steady LED, no lift (and no 3D
+  minis at all, as before).
+- **Dashboard "refresh 30s" is real:** `RefreshBar` re-checks the live server (`/api/healthz`,
+  no-store) every 30 s while the dashboard is on screen and the tab visible; "updated Ns ago"
+  ticks from the last successful check; the live dot pulses green, or amber with "server
+  unreachable · retrying" when a check fails. No panel value changes. Options rejected: a timer
+  that only resets the label (that would claim a refresh that never happened).
+- **Section command lines** type themselves once (250 ms pause, 38 ms/char, cursor) when they
+  first scroll into view (`ui/TypedCommand.tsx`). Server HTML and hydration show the full line;
+  only lines still below the viewport at hydration are emptied, so nothing visible flashes.
+  Screen readers always get the full text (sr-only copy). Reduced motion: full line.
+- **`sudo hire-me`:** the engine returns `action: "whale"`; `lib/hireMe.ts` (tiny emitter) reaches
+  `easter-eggs/HireMeWhale.tsx` in the Contact section: an original inline-SVG whale (faceted body,
+  blunt head, horizontal flukes, three containers on its back) swims through the terminal's screen
+  across the whole section (7.6 s desktop, 5.6 s phones), WAAPI transform only, tail flick, clipped
+  to the section, pointer-events none. Reduced motion: fades in and out over the terminal
+  (opacity only, 2.6 s). First draft read as a fish (vertical forked tail, pointed head) -> redrawn.
+- **Measured (local prod build, 1280x495):** cards landed + LEDs idle 59.9 fps (p95 16.9 ms);
+  scroll through drop / landing both ways 59.2-59.4 fps (p95 16.9); whale swim 59.2-59.3 fps
+  (p95 17.1). 360 px: LED blinking, card lift 6 px / 2 deg, refresh bar on one line, command line
+  fits (no truncation), whale crosses the terminal, no horizontal overflow. Reduced motion checked
+  with an emulated Chrome (CDP `setEmulatedMedia`).
