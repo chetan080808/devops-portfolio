@@ -9,8 +9,9 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
+    # security-headers first: the www -> apex redirect carries HSTS too (a redirect ends the chain).
     traefik.ingress.kubernetes.io/router.middlewares: >-
-      portfolio-www-to-apex@kubernetescrd,portfolio-security-headers@kubernetescrd
+      portfolio-security-headers@kubernetescrd,portfolio-www-to-apex@kubernetescrd
 spec:
   ingressClassName: traefik
   tls:
