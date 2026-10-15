@@ -52,27 +52,71 @@ function logFor(run: ChaosRun): LogLine[] {
   ];
 }
 
-/** Chaos Monkey button for the hero stage ("Simulate a server crash"). Disabled while a run is in progress. */
+/** Set once the visitor has pressed the crash button (this session): its glow pulse stops for good. */
+const TRIED_KEY = "pf-chaos-tried";
+const wasTried = () => {
+  try {
+    return sessionStorage.getItem(TRIED_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+/** Soft glow every few seconds (opacity of a glow layer only: compositor work, no repaint). */
+const PULSE: Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 0, offset: 0.34 }, { opacity: 0 }];
+const PULSE_MS = 4200;
+
+/**
+ * Chaos Monkey button for the hero stage ("Simulate a server crash"): an amber pill with a warning
+ * sign, so it reads as something to try, not as an error. Its glow pulses until it has been pressed
+ * once (sessionStorage); no pulse with reduced motion. Disabled while a run is in progress.
+ */
 export function ChaosMonkeyButton({ disabled, className }: { disabled?: boolean; className?: string }) {
   const run = useChaosRun();
   const busy = !!run;
+  const glow = useRef<HTMLSpanElement>(null);
+  const [tried, setTried] = useState(false);
+  const off = disabled || busy;
+
+  useEffect(() => {
+    const el = glow.current;
+    if (!el || off || tried || wasTried() || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const anim = el.animate(PULSE, { duration: PULSE_MS, iterations: Infinity, delay: 1200, easing: "ease-in-out" });
+    return () => anim.cancel();
+  }, [off, tried]);
+
   return (
     <button
       type="button"
-      onClick={() => chaos.trigger()}
-      disabled={disabled || busy}
+      onClick={() => {
+        chaos.trigger();
+        setTried(true);
+        try {
+          sessionStorage.setItem(TRIED_KEY, "1");
+        } catch {}
+      }}
+      disabled={off}
       aria-describedby="chaos-hint"
       className={cn(
-        // Neutral by default (it's an easter egg, not an error); red only when you reach for it.
-        "pointer-events-auto relative rounded-md border border-line-strong px-2 py-0.5 font-mono text-[0.68rem] whitespace-nowrap text-faint",
-        "transition-[color,background-color,border-color,transform] duration-300 active:scale-95 active:duration-75 hover:border-danger/60 hover:bg-danger/10 hover:text-danger",
-        "focus-visible:border-danger focus-visible:bg-danger/10 focus-visible:text-danger",
-        "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-line-strong disabled:hover:bg-transparent disabled:hover:text-faint",
+        "pointer-events-auto relative inline-flex items-center gap-1.5 rounded-full border border-warning/60 bg-warning/[0.09] px-3 py-1 font-mono text-xs whitespace-nowrap text-warning",
+        "transition-[color,background-color,border-color,transform] duration-200 hover:border-warning hover:bg-warning/[0.18] active:scale-95 active:duration-75 motion-reduce:transform-none",
+        "focus-visible:border-warning focus-visible:bg-warning/[0.18] focus-visible:ring-2 focus-visible:ring-warning/60 focus-visible:outline-none",
+        "disabled:cursor-not-allowed disabled:border-line-strong disabled:bg-transparent disabled:text-faint",
         className,
       )}
     >
+      <span
+        ref={glow}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_14px_2px_rgb(245_158_11/0.5)]"
+      />
       {/* Touch: the hit area reaches 44 px tall without changing the look */}
-      <span aria-hidden="true" className="absolute inset-x-0 -inset-y-[11px]" />
+      <span aria-hidden="true" className="absolute inset-x-0 -inset-y-[9px]" />
+      <svg viewBox="0 0 16 16" aria-hidden="true" className="size-3.5 shrink-0">
+        <path d="M8 1.8 L15 14 H1 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M8 6.2 V9.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="8" cy="11.8" r="0.9" fill="currentColor" />
+      </svg>
       {busy ? site.chaos.busy : site.chaos.button}
       <span id="chaos-hint" className="sr-only">
         {site.chaos.srHint}

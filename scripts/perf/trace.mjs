@@ -7,7 +7,8 @@
 //   drop     wheel-scroll from the hero through the project cards (minis drop)
 //   pipeline wheel-scroll through the pinned Jenkins pipeline
 //
-//   node scripts/perf/trace.mjs [url] [--runs=N] [--warm] [--out=dir] [--keep]
+//   node scripts/perf/trace.mjs [url] [--runs=N] [--warm] [--out=dir] [--keep] [--size=1920x1080]
+//   --size  emulated viewport (CSS px, DPR 1), larger than the laptop screen if needed
 //   --warm  run once untimed first (HTTP + GPU shader cache warm, like a repeat visitor)
 //
 // No dependencies: Node >= 22 (global WebSocket) and a local Chrome.
@@ -29,6 +30,7 @@ const outDir = flag("out", null);
 const keep = Boolean(flag("keep", false));
 // --trace=0: no DevTools trace (tracing itself costs frames); frame + WebGL numbers only.
 const tracing = flag("trace", "1") !== "0";
+const size = flag("size", null);
 const chrome = process.env.CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const port = 9333;
 
@@ -291,6 +293,10 @@ try {
   c = await connect();
   await c.ready;
   await c.send("Page.enable");
+  if (size) {
+    const [width, height] = String(size).split("x").map(Number);
+    await c.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+  }
   await c.send("Runtime.enable");
   await c.send("Page.addScriptToEvaluateOnNewDocument", { source: RECORDER });
   await c.send("Emulation.setFocusEmulationEnabled", { enabled: true });

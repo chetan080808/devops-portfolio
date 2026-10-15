@@ -7,6 +7,7 @@ import { durationSince } from "@/lib/duration";
 import { SHOW_TODOS } from "@/lib/todo";
 import type { Milestone } from "@/types/content";
 import type { PipelineStage } from "./model";
+import { useBuildNumber } from "./buildNumber";
 import { useRunSync } from "./useRunSync";
 
 // Build date = today, read on the client only (no Date during prerender; server renders "").
@@ -42,7 +43,7 @@ function PassedDuration({ stage }: { stage: PipelineStage }) {
 
 /**
  * Classic Jenkins Stage View (desktop only): stage headers, an "Average stage times" row, then the
- * build row with a build-info cell (#n + date) and one cell per stage — light green with the
+ * build row with a build-info cell (#n of the latest build + date) and one cell per stage — light green with the
  * duration when passed, animated blue stripes while running, plain grey while queued.
  */
 export function StageView({
@@ -55,7 +56,7 @@ export function StageView({
   /** The build console sits on top of it (md–lg only; lg+ shows them side by side) */
   covered?: boolean;
 }) {
-  const build = site.experience.length;
+  const build = useBuildNumber();
   const date = useToday();
   const ref = useRef<HTMLDivElement>(null);
   // The date hydrating (and any other re-render) resets the cells to their final status.

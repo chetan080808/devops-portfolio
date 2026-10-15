@@ -26,9 +26,12 @@ interface Entry {
 
 const SUGGESTIONS = ["help", "whoami", "ls projects", "kubectl get pods", "contact"];
 
-/** Auto-typed command: ms per character, and the pause before Enter */
-const AUTO_CHAR_MS = 60;
-const AUTO_ENTER_MS = 350;
+/** Auto-typed command: pause with the blinking cursor first, ms per character, pause before Enter */
+const AUTO_START_MS = 600;
+const AUTO_CHAR_MS = 130;
+const AUTO_ENTER_MS = 450;
+/** The fixed navbar covers the top of the viewport */
+const NAVBAR_PX = 64;
 
 /**
  * Interactive terminal for the Contact section. Commands come from the pure engine in
@@ -50,6 +53,8 @@ export function Terminal() {
   /** The visitor typed or ran something: the auto command must not run (or stops typing). */
   const userActed = useRef(false);
   const runRef = useRef<(raw: string) => void>(() => {});
+  /** The auto command is being typed (shows a blinking cursor after the typed text) */
+  const [autoTyping, setAutoTyping] = useState(false);
 
   useEffect(() => {
     startRef.current = performance.now();
@@ -83,26 +88,33 @@ export function Terminal() {
     runRef.current = run;
   });
 
-  // Auto-type `site.terminal.autoCommand` once, the first time the terminal is mostly in view.
-  // Never focuses the input or scrolls; stops if the visitor types first. Reduced motion: no
-  // typing, the command and its output appear at once.
+  // Auto-type `site.terminal.autoCommand` once, the first time the whole terminal is on screen (or
+  // as much of it as fits): the blinking cursor waits a moment, the command is typed at a
+  // readable pace, then runs. Never focuses the input or scrolls; stops if the visitor types
+  // first. Reduced motion: no typing, the command and its output appear at once.
   useEffect(() => {
     const cmd = site.terminal.autoCommand;
     const el = rootRef.current;
     if (!cmd || !el) return;
     const timers: number[] = [];
+    const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(() => !userActed.current && fn(), ms));
     const io = new IntersectionObserver(
       ([e]) => {
-        if (!e.isIntersecting) return;
+        // Fully visible below the navbar, or (taller than that) filling the space; 4% slack for
+        // short screens, where it only just fits
+        const need = Math.min(e.boundingClientRect.height, window.innerHeight - NAVBAR_PX) * 0.96;
+        if (!e.isIntersecting || e.intersectionRect.height < need) return;
         io.disconnect();
         if (userActed.current) return;
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return runRef.current(cmd);
-        for (let i = 1; i <= cmd.length; i++) {
-          timers.push(window.setTimeout(() => !userActed.current && setValue(cmd.slice(0, i)), i * AUTO_CHAR_MS));
-        }
-        timers.push(window.setTimeout(() => !userActed.current && runRef.current(cmd), cmd.length * AUTO_CHAR_MS + AUTO_ENTER_MS));
+        setAutoTyping(true);
+        for (let i = 1; i <= cmd.length; i++) later(AUTO_START_MS + i * AUTO_CHAR_MS, () => setValue(cmd.slice(0, i)));
+        later(AUTO_START_MS + cmd.length * AUTO_CHAR_MS + AUTO_ENTER_MS, () => {
+          setAutoTyping(false);
+          runRef.current(cmd);
+        });
       },
-      { threshold: 0.6 },
+      { threshold: Array.from({ length: 21 }, (_, i) => i / 20), rootMargin: `-${NAVBAR_PX}px 0px 0px 0px` },
     );
     io.observe(el);
     return () => {
@@ -113,6 +125,7 @@ export function Terminal() {
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     userActed.current = true;
+    setAutoTyping(false);
     if (e.key === "Enter") {
       e.preventDefault();
       run(value);
@@ -239,6 +252,7 @@ export function Terminal() {
               placeholder={site.terminal.placeholder}
               onChange={(e) => {
                 userActed.current = true;
+                setAutoTyping(false);
                 setValue(e.target.value);
                 setCursor(history.length);
               }}
@@ -251,8 +265,22 @@ export function Terminal() {
               maxLength={200}
               aria-describedby="terminal-hint"
               // 16px on phones so iOS doesn't zoom into the field
-              className="peer w-full bg-transparent pl-[1.3ch] text-base text-fg caret-cyan outline-none placeholder:text-[0.8rem] placeholder:text-faint sm:text-[0.8rem]"
+              className={cn(
+                "peer w-full bg-transparent pl-[1.3ch] text-base text-fg caret-cyan outline-none placeholder:text-[0.8rem] placeholder:text-faint sm:text-[0.8rem]",
+                // While the command types itself: just the blinking cursor, no placeholder
+                autoTyping && "placeholder:text-transparent",
+              )}
             />
+            {/* Auto-typed command: the cursor follows the typed text (same font size → ch matches) */}
+            {autoTyping && value && (
+              <span
+                aria-hidden="true"
+                style={{ left: `${1.3 + value.length}ch` }}
+                className="pointer-events-none absolute top-1/2 -translate-y-1/2 animate-blink text-base text-cyan peer-focus:hidden sm:text-[0.8rem]"
+              >
+                ▍
+              </span>
+            )}
             {/* Blinking block before the placeholder while the field is empty and not focused
                 (focused: the real caret blinks instead) */}
             <span
@@ -275,6 +303,7 @@ export function Terminal() {
               type="button"
               onClick={() => {
                 userActed.current = true;
+                setAutoTyping(false);
                 run(s);
                 inputRef.current?.focus({ preventScroll: true });
               }}

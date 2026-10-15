@@ -80,10 +80,11 @@ const STAGE_PAUSE_MS = 380;
 
 /**
  * The whole run as a timed log for Build Now: every stage in run order (a parallel branch right
- * after its stage, in the same slot). Started "by user anonymous": the visitor pressed the button.
+ * after its stage, in the same slot). Started "by user anonymous": the visitor pressed the button;
+ * `number` is this build's number (#5, #6, …).
  * Same real content as the per-stage consoles; nothing is invented.
  */
-export function buildScript(stages: PipelineStage[]): BuildScript {
+export function buildScript(stages: PipelineStage[], number: number): BuildScript {
   const { pipeline } = site;
   const lines: ScriptLine[] = [];
   const slotStarts: number[] = [];
@@ -93,7 +94,7 @@ export function buildScript(stages: PipelineStage[]): BuildScript {
     lines.push({ line, at });
   };
   push("Started by user anonymous");
-  push(`[Pipeline] Start of Pipeline (${pipeline.job} » ${pipeline.branch})`);
+  push(`[Pipeline] Start of Pipeline (${pipeline.job} » ${pipeline.branch} #${number})`);
   for (const stage of stages) {
     if (!stage.parallelTo) {
       at += STAGE_PAUSE_MS;

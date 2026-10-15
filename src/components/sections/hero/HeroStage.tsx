@@ -193,11 +193,12 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
 
   return (
     // Desktop: spans the whole right column, top-aligned (centring against the taller text
-    // column pushed the cluster below the fold on short screens).
+    // column pushed the cluster below the fold on short screens). Its height leaves room for the
+    // status row, which sits just below it (outside the 3D frame, so the cluster never covers it).
     <div
       ref={ref}
       className={cn(
-        "relative mx-auto aspect-square w-full max-w-[34rem] lg:aspect-auto lg:h-[clamp(21rem,calc(100svh-7.5rem),38rem)] lg:max-w-none lg:self-start",
+        "relative mx-auto aspect-square w-full max-w-[34rem] lg:aspect-auto lg:h-[clamp(19rem,calc(100svh-10.5rem),38rem)] lg:max-w-none lg:self-start",
         // Below lg the stage sits between the name and the pitch (Hero.tsx); on phones it runs
         // edge to edge (past the page padding) so the scene gets the whole width.
         "max-lg:order-2 max-md:-mx-4 max-md:w-[calc(100%+2rem)] max-md:max-w-none",
@@ -217,7 +218,9 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
             style={maskStyle(EDGE_FADE)}
           />
         </div>
-        <div className="absolute inset-x-0 bottom-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+        {/* Status row + Chaos Monkey: inside the stage's bottom below lg; lg+ just under the stage
+            (the fixed canvas is masked there, so the cluster never draws over the button) */}
+        <div className="absolute inset-x-0 bottom-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 lg:top-full lg:bottom-auto lg:mt-1.5">
           <p
             className={cn(
               "font-mono text-[0.68rem] whitespace-nowrap transition-colors",

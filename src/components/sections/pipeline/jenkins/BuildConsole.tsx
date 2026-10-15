@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { site } from "@/content/site";
 import { cn } from "@/lib/cn";
 import { ConsoleEnd, ConsoleLine } from "./ConsolePanel";
 import { buildScript, scriptT, type PipelineStage } from "./model";
@@ -32,17 +31,20 @@ function phoneRail(job: HTMLElement | null) {
  * Remount (new `key`) for every build.
  */
 export function BuildConsole({
+  number,
   stages,
   onDone,
   onClose,
   className,
 }: {
+  /** Build number of this run */
+  number: number;
   stages: PipelineStage[];
   onDone: () => void;
   onClose: () => void;
   className?: string;
 }) {
-  const script = useMemo(() => buildScript(stages), [stages]);
+  const script = useMemo(() => buildScript(stages, number), [stages, number]);
   const [shown, setShown] = useState(0);
   const [done, setDone] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -119,7 +121,7 @@ export function BuildConsole({
     <div ref={ref} className={cn("flex flex-col bg-[#070a12]", className)}>
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
         <p className="truncate font-mono text-[0.72rem] text-muted">
-          <span className="text-cyan">#{site.experience.length}</span> » <span className="text-fg">Console Output</span>
+          <span className="text-cyan">#{number}</span> » <span className="text-fg">Console Output</span>
         </p>
         <button
           type="button"

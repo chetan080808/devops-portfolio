@@ -4,8 +4,10 @@ import { useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector2 } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { FXAAPass } from "three/examples/jsm/postprocessing/FXAAPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { createHeroMaskPass, updateHeroMask } from "./heroMaskPass";
 import { layerOverrides, passMaterials, postMaterials, sceneTarget } from "./precompile";
@@ -17,6 +19,20 @@ import { HERO_SET_LAYER, WHALE_LAYER, createSilhouetteTarget, renderSilhouette, 
  * hugging the edges instead.
  */
 const MIP_WEIGHTS = [1, 0.7, 0.32, 0.1, 0.02];
+
+type AaMode = "smaa" | "fxaa" | "off";
+
+/**
+ * Anti-aliasing after tone mapping: the composer renders without MSAA (MSAA halved the fps at
+ * 1920×1080), so thin neon edges crawled while moving. FXAA (one pass) costs ~1 fps at
+ * 1920×1080; SMAA (three passes) cost ~6, see DECISIONS D-50. `?aa=smaa|fxaa|off` overrides it
+ * for A/B measurements.
+ */
+const AA_DEFAULT: AaMode = "fxaa";
+function aaMode(): AaMode {
+  const q = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("aa");
+  return q === "smaa" || q === "fxaa" || q === "off" ? q : AA_DEFAULT;
+}
 
 interface Props {
   strength?: number;
@@ -45,6 +61,10 @@ export function Bloom({ strength = 0.45, radius = 0, threshold = 0.55 }: Props) 
     bloom.compositeMaterial.uniforms.bloomFactors.value = MIP_WEIGHTS;
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
+    // On the display-referred (sRGB) image, where edge detection matches what you see.
+    const aa = aaMode();
+    if (aa === "smaa") composer.addPass(new SMAAPass());
+    else if (aa === "fxaa") composer.addPass(new FXAAPass());
     // Hides the hero scene behind the text / below the hero (see heroMaskPass).
     const mask = createHeroMaskPass();
     composer.addPass(mask);
