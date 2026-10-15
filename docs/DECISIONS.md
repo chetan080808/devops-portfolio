@@ -623,3 +623,36 @@ Updated after every checkpoint.
   (the Stage View's area); acceptable, the graph above shows the run.
 - **Bug found:** at md-lg the console started 20 px low: the graph's top margin collapsed through
   the wrapper, so the 200 px offset was measured from the wrong edge. Fixed with `flow-root`.
+
+### D-49 Plain-language layer for non-technical visitors
+
+- **Context:** feedback that recruiters / HR don't understand parts of the site. Keep the DevOps
+  style, add plain language next to it. Wording approved by the owner before building; all of it
+  lives in `site.ts` (`sections`, `chaos`, `terminal`, `pipeline.intro/legend/stageHint/buildHint`,
+  `Milestone.plainTitle`, `parallel.plainLabel`, `hero.scrollHint`, `boot.plainLine`).
+- **Choices:**
+  - Pipeline: the plain step name ("Education", "DevOps Engineer — current") is the main label;
+    the Jenkins stage name is the small mono label under it. Stage View columns stay technical
+    (narrow cells; it is the Jenkins detail view). Legend (completed / current / "not started" only
+    while a stage is queued: `applyRun` toggles `data-queued` on the job) sits bottom-left of the
+    graph beside the branch row, so the pinned job grows only 10 px (branch row moved down 10 px so
+    two-line plain labels clear it): 396 px at 1280x495, still inside the pin.
+  - "Click" vs "Tap": `ui/PointerText.tsx` renders both and CSS `pointer: coarse` picks one, so
+    the server HTML is right without a flash.
+  - Chaos Monkey: "Simulate a server crash" + "Watch the system heal itself". The note sits inline
+    on desktop: as a second row it pushed the status row up into the 3D cluster on short screens.
+    The run summary uses the real timeline (3 servers / 4.1 s desktop, 2 / 3.7 s phones); its 3
+    lines are reserved from the start so the log box (and the area the whale avoids) never resizes;
+    the log lingers 6 s instead of 3.2 s so it can be read.
+  - Terminal: placeholder + blinking block (only while empty and unfocused); phones show the short
+    prompt `~$` so the placeholder fits at 360 px; "Try:" before the chips; `whoami` auto-typed once
+    when 60% of the terminal is in view (60 ms/char), never focusing or scrolling, cancelled by
+    any input; reduced motion runs it without typing.
+  - Boot: "Loading Chetan's portfolio…" is inside `[data-boot-screen]`, so it leaves with the CRT
+    power-off, never on its own. Verified: transition `crt`, `boot-crt` on the screen (leaving ->
+    done 630 ms), no animation on the line itself.
+- **Tablet console (follow-up to D-48):** at 768-1023 px the build console starts 110 px into the
+  graph block (4 px below the main row's labels) and covers the branch row too: 8.4 log lines
+  (was ~4), solid background (the branch node showed through at 95%).
+- **Measured (local prod build):** Build Now 60 fps at 1280x495 and at 360 px (p95 17.0-17.2 ms);
+  no horizontal overflow at 360; job height unchanged by the console at 800 / 1000 / 1280.
