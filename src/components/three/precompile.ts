@@ -74,7 +74,8 @@ function drawablesOf(root: Object3D) {
   const drawables: Object3D[] = [];
   root.traverse((o) => {
     const d = o as Mesh;
-    if (d.material && (d.isMesh || (o as { isPoints?: boolean }).isPoints || (o as { isLine?: boolean }).isLine)) drawables.push(o);
+    const kind = o as { isPoints?: boolean; isLine?: boolean; isSprite?: boolean };
+    if (d.material && (d.isMesh || kind.isPoints || kind.isLine || kind.isSprite)) drawables.push(o);
   });
   return drawables;
 }

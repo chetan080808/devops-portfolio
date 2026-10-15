@@ -87,6 +87,16 @@ export const site: SiteContent = {
     placeholder: "Type help and press Enter…",
     tryLabel: "Try:",
     autoCommand: "whoami",
+    hireMeWhale: "A whale carrying containers swims across the contact section.",
+  },
+
+  dashboardBar: {
+    title: "skills / overview",
+    range: "range: all time",
+    refresh: "refresh 30s",
+    updated: "updated {s}s ago",
+    justNow: "updated just now",
+    offline: "server unreachable · retrying",
   },
 
   projects: [

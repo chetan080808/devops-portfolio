@@ -2,8 +2,26 @@
 
 import { useEffect, useMemo } from "react";
 import { createPortal, useFrame } from "@react-three/fiber";
-import { MathUtils, Matrix4, PerspectiveCamera, Quaternion, Scene, Vector2, Vector3, type Mesh, type MeshStandardMaterial } from "three";
+import {
+  AdditiveBlending,
+  Box3,
+  CanvasTexture,
+  MathUtils,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  PerspectiveCamera,
+  Quaternion,
+  Scene,
+  SphereGeometry,
+  Sprite,
+  SpriteMaterial,
+  Vector2,
+  Vector3,
+  type MeshStandardMaterial,
+} from "three";
 import { site } from "@/content/site";
+import { accentHex, statusAccent } from "@/lib/accent";
 import { miniDropProgress, scrollStory } from "@/lib/scrollStory";
 import { MODELS, useModel } from "../assets";
 import { disposeMaterials, isNeon } from "../materials";
@@ -34,6 +52,32 @@ const BAY_OFFSET_Y = 8;
 const FLASH = { peak: 3.2, decay: 4 };
 /** How high (px) the arc lifts above the start before dropping into the card */
 const ARC_LIFT = 70;
+/** Card hover: the landed mini lifts (px) and turns a little (rad about the view's up axis) */
+const HOVER = { lift: 7, yaw: 0.16, roll: -0.035, rate: 9 };
+/**
+ * Status LED on the roof: same blink as the 2D container (globals.css led-blink, 2.6 s: steady,
+ * then a quick double blink). Returns brightness 0.15..1.
+ */
+const LED_PERIOD = 2.6;
+function ledLevel(t: number) {
+  const f = (t % LED_PERIOD) / LED_PERIOD;
+  const dips = [0.66, 0.75];
+  return dips.some((d) => Math.abs(f - d) < 0.025) ? 0.15 : 1;
+}
+
+/** Soft round glow for the LED halo (the overlay pass has no bloom). */
+function haloTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,255,255,1)");
+  r.addColorStop(0.35, "rgba(255,255,255,0.35)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 64, 64);
+  return new CanvasTexture(c);
+}
 
 const p0 = new Vector2();
 const p1 = new Vector2();
@@ -54,6 +98,8 @@ const easeInOut = (t: number) => (1 - Math.cos(Math.PI * t)) / 2;
 const softLand = (t: number) => 1 - (1 - t) * (1 - t);
 const camUp = new Vector3();
 const faceMat = new Matrix4();
+const hoverTurn = new Quaternion();
+const hoverRoll = new Quaternion();
 
 /**
  * 4a: as Deployments scrolls in, each mini leaves the whale's back and drops into its project
@@ -94,6 +140,41 @@ export function MiniDrop() {
       }),
     [minis],
   );
+  // Status LEDs: a small unlit dot + additive halo on the roof corner that faces the viewer once
+  // parked (local +x side, the end on the screen's right), in the project's status colour.
+  const leds = useMemo(() => {
+    const box = new Box3().setFromObject(containerScene);
+    const size = box.getSize(new Vector3());
+    const geo = new SphereGeometry(0.035, 12, 8);
+    const tex = haloTexture();
+    return minis.map((mini, i) => {
+      const color = accentHex[statusAccent[site.projects[i].status]];
+      const dot = new Mesh(geo, new MeshBasicMaterial({ color, toneMapped: false, transparent: true }));
+      const halo = new Sprite(
+        new SpriteMaterial({ map: tex, color, blending: AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }),
+      );
+      halo.scale.setScalar(0.22);
+      const at = new Vector3(box.max.x - size.x * 0.22, box.max.y + 0.02, box.min.z + size.z * 0.12);
+      dot.position.copy(at);
+      halo.position.copy(at);
+      dot.visible = halo.visible = false;
+      mini.add(dot, halo);
+      return { dot, halo, geo, tex };
+    });
+  }, [minis, containerScene]);
+  useEffect(
+    () => () => {
+      leds.forEach(({ dot, halo }) => {
+        (dot.material as MeshBasicMaterial).dispose();
+        halo.material.dispose();
+      });
+      leds[0]?.geo.dispose();
+      leds[0]?.tex.dispose();
+    },
+    [leds],
+  );
+  // Card hover, eased per mini (0..1)
+  const hover = useMemo(() => minis.map(() => 0), [minis]);
   useEffect(() => () => minis.forEach(disposeMaterials), [minis]);
 
   useEffect(() => {
@@ -123,6 +204,7 @@ export function MiniDrop() {
     camera.updateMatrixWorld();
     forward.set(0, 0, -1).applyQuaternion(camera.quaternion);
     const slots = document.querySelectorAll<HTMLElement>("[data-mini-slot]");
+    const time = state.clock.elapsedTime;
 
     minis.forEach((mini, i) => {
       const attached = miniRegistry.attached[i];
@@ -134,6 +216,16 @@ export function MiniDrop() {
       fx.flash = Math.max(0, fx.flash - delta * FLASH.decay);
       const boost = 1 + (FLASH.peak - 1) * fx.flash;
       fx.mats.forEach((m, k) => (m.emissiveIntensity = fx.base[k] * boost));
+      const led = leds[i];
+      const landed = q >= 0.995;
+      led.dot.visible = led.halo.visible = landed;
+      if (landed) {
+        const l = ledLevel(time);
+        (led.dot.material as MeshBasicMaterial).opacity = l;
+        led.halo.material.opacity = 0.85 * l;
+      }
+      const hovered = landed && !!slot?.closest("article")?.matches(":hover");
+      hover[i] = MathUtils.damp(hover[i], hovered ? 1 : 0, HOVER.rate, delta);
       if (q <= 0 || !attached || !slot || attached.scale.x === 0) {
         mini.visible = false;
         if (attached) attached.visible = true;
@@ -151,7 +243,7 @@ export function MiniDrop() {
 
       // End: the card's slot (the desktop canvas is fixed, so viewport px = canvas px).
       const r = slot.getBoundingClientRect();
-      p1.set(r.left + r.width / 2, r.top + r.height / 2 + BAY_OFFSET_Y);
+      p1.set(r.left + r.width / 2, r.top + r.height / 2 + BAY_OFFSET_Y - HOVER.lift * hover[i]);
       const k1 = Math.min((r.width * BAY_FILL.w) / PARKED_W, (r.height * BAY_FILL.h) / PARKED_H);
 
       // Path: eased start, decelerating into the bay (lands softly, no snap).
@@ -180,6 +272,12 @@ export function MiniDrop() {
       mini.quaternion.slerpQuaternions(startQuat, endQuat, Math.min(1, e * 1.15));
       wobble.setFromAxisAngle(forward, Math.sin(Math.PI * e) * 0.18);
       mini.quaternion.premultiply(wobble);
+      // Living card: hovered, the landed container turns a little toward the viewer and tilts.
+      if (hover[i] > 0.001) {
+        hoverTurn.setFromAxisAngle(camUp, HOVER.yaw * hover[i]);
+        hoverRoll.setFromAxisAngle(forward, HOVER.roll * hover[i]);
+        mini.quaternion.premultiply(hoverTurn).premultiply(hoverRoll);
+      }
     });
   });
 

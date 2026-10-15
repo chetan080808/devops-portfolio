@@ -2,6 +2,7 @@ import { site } from "@/content/site";
 import { Section } from "@/components/ui/Section";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ButtonLink } from "@/components/ui/Button";
+import { HireMeWhale } from "@/components/easter-eggs/HireMeWhale";
 import { CopyEmail } from "./CopyEmail";
 import { Terminal } from "./Terminal";
 
@@ -11,6 +12,8 @@ export function ContactTerminal() {
 
   return (
     <Section id="contact" aria-labelledby="contact-title">
+      {/* `sudo hire-me` easter egg: swims across the whole section */}
+      <HireMeWhale />
       <SectionHeader id="contact-title" index="04" label="ssh contact@portfolio" title="Let's talk">
         {site.sections.contact}
       </SectionHeader>

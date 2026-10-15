@@ -34,7 +34,7 @@ export interface RunResult {
   /** Clear the screen before printing (`clear`) */
   clear?: boolean;
   /** Side effect for the UI to perform (the engine itself stays pure) */
-  action?: "chaos";
+  action?: "chaos" | "whale";
 }
 
 interface Command {
@@ -165,12 +165,14 @@ const COMMANDS: Command[] = [
   {
     name: "sudo hire-me",
     summary: "¯\\_(ツ)_/¯",
-    run: () =>
-      lines(
+    run: () => ({
+      ...lines(
         [t(`[sudo] password for ${site.profile.handle}: ********`, "muted")],
         [t("Permission granted. Escalating to recruiter…", "ok")],
         [t("→ ", "faint"), link(`Email ${site.profile.email}`, `mailto:${site.profile.email}?subject=Let's%20work%20together`)],
       ),
+      action: "whale",
+    }),
   },
   {
     name: "chaos-monkey",

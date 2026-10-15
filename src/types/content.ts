@@ -182,6 +182,19 @@ export interface SiteContent {
     tryLabel: string;
     /** Typed and run once when the section first comes into view (null = off) */
     autoCommand: string | null;
+    /** Screen-reader note when `sudo hire-me` sends the whale across the section */
+    hireMeWhale: string;
+  };
+  /** Dashboard toolbar. The "refresh" really re-checks the live server (/api/healthz) every 30 s. */
+  dashboardBar: {
+    title: string;
+    range: string;
+    refresh: string;
+    /** {s} = seconds since the last successful check */
+    updated: string;
+    justNow: string;
+    /** The last check failed */
+    offline: string;
   };
   projects: Project[];
   experience: Milestone[];

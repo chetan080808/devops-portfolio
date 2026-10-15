@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { site } from "@/content/site";
 import { chaos } from "@/lib/chaos";
+import { hireMe } from "@/lib/hireMe";
 import { cn } from "@/lib/cn";
 import { commonPrefix, complete, runCommand, type Line, type Tone } from "@/lib/terminal/engine";
 
@@ -77,6 +78,7 @@ export function Terminal() {
       result.action === "chaos" && !chaos.trigger()
         ? [[{ text: "chaos-monkey: a run is already in progress — give the cluster a moment.", tone: "warn" as const }]]
         : result.lines;
+    if (result.action === "whale") hireMe.trigger();
     const out: Entry[] = outLines.map((line) => ({ id: nextId(), input: null, line }));
     setEntries((prev) => (result.clear ? [] : [...prev, echo, ...out]));
     setHistory(newHistory);
@@ -176,6 +178,7 @@ export function Terminal() {
   return (
     <div
       ref={rootRef}
+      data-terminal
       onClick={onWindowClick}
       className="glass glow-edge overflow-hidden rounded-2xl bg-bg-raised/80 transition-shadow focus-within:ring-2 focus-within:ring-cyan/60"
     >
