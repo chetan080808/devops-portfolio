@@ -729,3 +729,57 @@ Updated after every checkpoint.
   (p95 17.1). 360 px: LED blinking, card lift 6 px / 2 deg, refresh bar on one line, command line
   fits (no truncation), whale crosses the terminal, no horizontal overflow. Reduced motion checked
   with an emulated Chrome (CDP `setEmulatedMedia`).
+
+### D-52 Baked environment map, and a still that the 3D takes over from exactly
+
+- **Boot freeze (first visits):** measured with `scripts/perf/trace.mjs` (fresh profile, local prod
+  build): the longest boot frame was 634-1051 ms, of which 630-1040 ms was one shader program,
+  `PMREMGGXConvolution` (the environment map's blur, compiled at runtime by drei `<Environment>`).
+  **Choice:** bake the environment once (`scripts/bake-env.mjs`: the page, opened with `?bake-env`,
+  builds it the old way and exposes the PMREM result; stored as a 336x256 sRGB PNG in three's
+  cube-UV layout, 19.5 KB, scale 1.2 in `envBake.ts`) and use the PNG directly as
+  `scene.environment` with `CubeUVReflectionMapping`: three passes cube-UV textures straight
+  through, so no cube camera and no PMREM shaders run. Rejected: an equirect/HDR file (PMREM would
+  still convert it at runtime).
+  **After:** shader waits in the boot 1-3 ms (was 630-1040 ms); longest boot frame 150-720 ms,
+  now the 3D chunk's evaluation + WebGL context creation (varies run to run).
+  **Lighthouse desktop (local prod, 5 runs each):** before Perf 66 (every run), TBT 967-1046 ms;
+  after Perf 80-93 (median 90), TBT 187-418 ms (median 221); A11y / BP / SEO 100; CLS 0.009.
+- **Still -> 3D handoff:** the placeholder (the SVG cluster on desktop, a capture taken 12 s into
+  the idle on phones) never matched the 3D, which then rebuilt from empty (intro) or jumped.
+  **Choice:** the still IS the 3D's first visible frame of a settled start, and whenever the still
+  has been on screen the 3D starts settled (`introSettled`) on exactly that frame.
+  - Capture: `?still` capture mode starts settled and stops at the first visible frame, reading
+    the canvas pixels raw in that frame (`scripts/capture-hero-still.mjs`). Screenshots of a
+    stopped canvas were unreliable (empty after a resize).
+  - Two layers per still: `-shade` (black + the canvas alpha) and `-light` (premultiplied colour,
+    `mix-blend-mode: plus-lighter`): page x (1 - alpha) + colour, exactly what the canvas shows. A
+    straight-alpha image clips the bloom (colour > alpha), so the glow visibly brightened at the
+    switch. The layers fade one by one: an opacity < 1 wrapper isolates them (a dark square).
+  - Desktop placement is pure CSS (container units) with the camera's own rule (`cameraFit.ts`:
+    fixed 46 deg horizontal FOV, vertical clamped 33-50 deg) inside the frame (stage + bleed), so
+    it lines up at any window size from the server HTML. Bloom spreads in screen pixels while the
+    scene scales with the frame, so there is one capture per window-height band (>= 740, 590-739,
+    < 590 px), each taken where the FOV is unclamped (the short band at 1024x495). Phones: 585 px
+    (the canvas' own resolution at DPR 1.5), lossless.
+  - When: repeat visits (boot skipped), phones (cap hit / no auto 3D / "load 3D anyway"), and a
+    slow warm-up after a boot on desktop (still after 1.5 s; otherwise the intro plays on an empty
+    stage as before). Once the intro clock has started the still never appears.
+  - **Bugs found on the way:** (1) the canvas' very first frame is opaque and dark
+    (post-processing not settled): a one-frame dark flash at every 3D start, the whole page on
+    desktop. It is now wiped to transparent before it is presented (FrameGate). (2) Hiding the
+    canvas until frame 2 instead left a frame with neither still nor 3D (a hidden canvas is only
+    composited again on its next frame). (3) The swim cycle advanced by the raw first delta (the
+    whole warm-up), so the whale's pose at takeover was random: capped like the intro clock.
+    (4) The status label re-wrapped the row at 360 px when "pulling 3D layers…" became "[ OK ] 7/7
+    nodes ready", moving the Chaos pill (fixed min width). (5) Reduced motion moved the whale to its
+    home point: it now holds the settled pose. (6) The image optimizer kept serving an older
+    capture under the same URL: the stills are served as captured.
+  - **Measured** (`scripts/perf/handoff.mjs`: repeat visit, screencast, mean frame-to-frame change
+    of the scene area at the switch vs. the largest change during idle motion): 1440x900 0.07-0.12
+    (idle 2-3), 1920x1080 0.1, 1536x864 at DPR 1.25 0.06-0.22, 1366x680 0.5-0.6, 1280x495 1.5,
+    phones 390 px 0.07-1.4, 360 px 2.3-2.4 (idle 1.4-2.7), low-end phone after "load 3D anyway"
+    0.13 / 2.35, reduced motion 1440x900 0.00. Known small residue: at 360 px and very short windows
+    (1280x495) the live glow is slightly stronger than the still's (resolution-dependent bloom); no
+    pose change anywhere.
+- Re-run both scripts whenever the lights, the scene's look, the settled pose or the framing change.
