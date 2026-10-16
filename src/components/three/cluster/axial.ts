@@ -1,5 +1,5 @@
 /**
- * Cluster honeycomb in axial coordinates — same layout as the static SVG (HexCluster): centre,
+ * Cluster honeycomb in axial coordinates: centre,
  * inner ring, 6 outer. Plain module (no three import): the DOM side reads NODE_COUNT without
  * pulling three.js into the main bundle.
  */

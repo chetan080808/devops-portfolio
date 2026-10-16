@@ -11,6 +11,7 @@ import {
   WHALE_SETTLED_AT,
   WHALE_TRACKING,
 } from "./hero/choreography";
+import { FRAME_BLEED } from "./cameraFit";
 import { whaleTrack } from "./hero/tracking";
 import { power2InOut, span, useIntroClock } from "./intro";
 import { canvasOrigin, heroLayout } from "./heroLayout";
@@ -21,8 +22,8 @@ import { pointer } from "./pointer";
  * (9% / 7% per side). On desktop the canvas is the whole hero, so a lens shift (setViewOffset)
  * renders that frame in exactly the same place while the canvas extends left into the gap.
  */
-const BLEED_X = 0.09;
-const BLEED_Y = 0.07;
+const BLEED_X = FRAME_BLEED.x;
+const BLEED_Y = FRAME_BLEED.y;
 
 const position = new Vector3();
 /** Farthest any camera key gets from the home pose (the close-up): scales the mobile zoom weight. */

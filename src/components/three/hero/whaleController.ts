@@ -44,6 +44,8 @@ const clampedWorld = new Vector3();
 export class WhaleController {
   readonly pos = new Vector3();
   private vel = new Vector3();
+  /** Where the intro left the whale: reduced motion holds it there */
+  private rest = new Vector3();
   private a = SWIM.side; // heading parameter, see SWIM.side
   private aVel = 0;
   private faceLeft = true;
@@ -89,6 +91,7 @@ export class WhaleController {
   /** Take over from the intro path at the whale's current pose. */
   start(position: Vector3, yaw: number) {
     this.pos.copy(position);
+    this.rest.copy(position);
     this.vel.set(0, 0, 0);
     this.a = MathUtils.euclideanModulo(yaw - Math.PI + Math.PI, Math.PI * 2) - Math.PI;
     this.aVel = 0;
@@ -190,6 +193,8 @@ export class WhaleController {
       }
     }
     fromCanvasPx(px.x, px.y, this.z, camera, w, h, targetWorld);
+    // Reduced motion: held where the intro settled it, the pose the hero still shows (D-52).
+    if (still && !dropMode) targetWorld.copy(this.rest);
     if (!still) {
       this.bobPhase += ((Math.PI * 2) / SWIM.bob.period) * dt;
       targetWorld.y += SWIM.bob.amplitude * (1 - 0.6 * calm) * Math.sin(this.bobPhase);
@@ -246,7 +251,8 @@ export class WhaleController {
     } else this.flipHold = 0;
     const aTarget = this.faceLeft ? SWIM.side : -SWIM.side;
     if (still) {
-      this.a = aTarget;
+      // Keeps the settled heading (reduced motion never turns; see `rest`)
+      if (dropMode) this.a = aTarget;
       this.aVel = 0;
     } else {
       const tk = MathUtils.lerp(SWIM.turn.stiffness, SWIM.calm.turnStiffness, calm);

@@ -1,7 +1,6 @@
 import { site } from "@/content/site";
 import { ButtonLink } from "@/components/ui/Button";
 import { StatusDot } from "@/components/ui/StatusDot";
-import { HexCluster } from "./HexCluster";
 import { HeroStage } from "./HeroStage";
 
 export function Hero() {
@@ -75,7 +74,7 @@ export function Hero() {
           </div>
         </div>
 
-        <HeroStage fallback={<HexCluster />} />
+        <HeroStage />
       </div>
 
       <a

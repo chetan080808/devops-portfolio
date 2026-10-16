@@ -12,16 +12,17 @@ export const span = (t: number, start: number, duration: number) => clamp01((t -
 /** Intro time a settled start begins at: past every intro tween (same as reduced motion). */
 const SETTLED_START = 1e4;
 
-/** Longest step the intro advances in one frame (s). */
-const MAX_STEP = 1 / 20;
+/** Longest step the intro (and anything timed with it, e.g. the swim cycle) advances in one frame (s). */
+export const MAX_STEP = 1 / 20;
 
 /**
  * Shared clock for the hero intro. It advances only on rendered frames (ticked once per frame
  * by IntroTicker), capped per frame, so when rendering pauses — hero scrolled out of view,
  * background tab — the intro resumes where it left off instead of jumping ahead.
  * Starts after the boot overlay is gone; `skip` (reduced motion) renders the settled state.
- * With `introSettled` (phones: the still was on screen) it starts at the end of the intro, so the
- * 3D replaces the still in the same settled pose and the idle motion simply carries on.
+ * With `introSettled` (the still was on screen) it starts at the end of the intro, so the 3D
+ * replaces the still in the same settled pose (the still IS that first frame, see
+ * scripts/capture-hero-still.mjs) and the idle motion simply carries on.
  */
 export class IntroClock {
   private elapsed = 0;
@@ -38,6 +39,7 @@ export class IntroClock {
       const { bootDone, introSettled } = sceneStore.get();
       this.started = bootDone;
       if (bootDone && introSettled) this.elapsed = SETTLED_START;
+      if (bootDone) sceneStore.set({ introStarted: true });
     }
     if (this.started) this.elapsed += Math.min(delta, MAX_STEP);
   }

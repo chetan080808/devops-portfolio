@@ -9,8 +9,11 @@ export interface SceneState {
   /** Files fetched through three's loading manager (the GLBs) */
   assetsLoaded: number;
   assetsTotal: number;
-  /** Models parsed and the first frame of the scene rendered */
+  /** Models parsed and every shader compiled (the render loop may start) */
   sceneReady: boolean;
+  /** The canvas has rendered FIRST_VISIBLE_FRAME frames and may be shown: its very first frame
+   *  comes out opaque and dark (post-processing targets not settled yet), a one-frame flash */
+  framesShown: boolean;
   /** 3D failed (no WebGL, load error) — the page falls back to the static hero */
   failed: boolean;
   /** Why: "no-gpu" = only software WebGL (static on purpose), "error" = no WebGL / load error */
@@ -25,8 +28,12 @@ export interface SceneState {
   /** Shader warm-up steps done / planned (precompile.ts); 0 / 0 until it starts */
   compileDone: number;
   compileTotal: number;
-  /** The still was on screen after the boot: the 3D comes in already settled (no intro) */
+  /** The still was on screen before the 3D: the 3D comes in already settled (no intro), in the
+   *  pose the still was captured in */
   introSettled: boolean;
+  /** The intro clock has started (first rendered frame after the boot): too late to switch to a
+   *  settled start, so the still must not appear any more */
+  introStarted: boolean;
   /** Boot overlay finished or skipped; the hero intro may start */
   bootDone: boolean;
   /** Hero intro: every node landed and linked */
@@ -40,6 +47,7 @@ let state: SceneState = {
   assetsLoaded: 0,
   assetsTotal: 0,
   sceneReady: false,
+  framesShown: false,
   failed: false,
   failReason: null,
   deferred: false,
@@ -48,6 +56,7 @@ let state: SceneState = {
   compileDone: 0,
   compileTotal: 0,
   introSettled: false,
+  introStarted: false,
   bootDone: false,
   clusterReady: false,
   progress: 0,

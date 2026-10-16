@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { AnimationMixer, Box3, Euler, Quaternion, MathUtils, MeshStandardMaterial, Vector3, type Group, type Mesh, type PerspectiveCamera, type PointLight } from "three";
 import { site } from "@/content/site";
 import { MODELS, useModel } from "../assets";
-import { clamp01, power2InOut, span, useIntroClock } from "../intro";
+import { MAX_STEP, clamp01, power2InOut, span, useIntroClock } from "../intro";
 import { cloneWithMaterials, disposeMaterials } from "../materials";
 import {
   BANK_GAIN,
@@ -126,7 +126,7 @@ export function Whale() {
     let swimRate = 1;
 
     // After the intro: the swim controller (cursor follow / idle figure-eight) takes over from
-    // the exact settled pose, so nothing jumps. Reduced motion: placed at home, held still.
+    // the exact settled pose, so nothing jumps. Reduced motion: held still in that pose.
     if (t >= WHALE_SETTLED_AT) {
       controller.current ??= new WhaleController(localBounds);
       const c = controller.current;
@@ -139,7 +139,9 @@ export function Whale() {
       bank = pose.bank;
       swimRate = pose.swimRate;
     }
-    swim.update(clock.still ? 0 : delta * swimRate);
+    // Capped like the intro clock: the first frame's delta spans the whole shader warm-up, which
+    // jumped the swim cycle to a random pose (the still is captured at a fixed one).
+    swim.update(clock.still ? 0 : Math.min(delta, MAX_STEP) * swimRate);
     euler.set(-pitch, heading, bank);
     g.quaternion.setFromEuler(euler);
     // 4a: once the hero scrolls away, the lens-shifted hero camera sees the whale far off its

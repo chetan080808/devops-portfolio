@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
-import Image from "next/image";
+import { getImageProps } from "next/image";
 import { ChaosMonkeyButton } from "@/components/easter-eggs/ChaosMonkey";
 import { CanvasErrorBoundary } from "@/components/three/CanvasErrorBoundary";
 import { NODE_COUNT } from "@/components/three/cluster/axial";
 import { measureHeroLayout } from "@/components/three/heroLayout";
+import { FRAME_BLEED, STILL_FIT } from "@/components/three/cameraFit";
+import { STILL_CAPTURE } from "@/lib/stillCapture";
 import { useIsMobile, useMediaQuery, usePrefersReducedMotion } from "@/hooks/useMediaQuery";
 import { useChaosRun, useChaosTime } from "@/hooks/useChaos";
 import { useSceneState } from "@/hooks/useSceneState";
@@ -74,10 +76,9 @@ const useBootRan = () => useSyncExternalStore(noSubscribe, readBootRan, () => nu
 const HeroCanvas = dynamic(() => import("@/components/three/HeroCanvas"), { ssr: false });
 
 /**
- * Hosts the lazy 3D canvas. `fallback` (the static SVG cluster) is server-rendered, shows
- * while the scene loads, and stays as the no-WebGL fallback.
+ * Hosts the lazy 3D canvas, and the still of the scene that stands in for it (HeroStill).
  */
-export function HeroStage({ fallback }: { fallback: ReactNode }) {
+export function HeroStage() {
   const mobile = useIsMobile();
   const desktop = useMediaQuery("(min-width: 1024px)");
   const reducedMotion = usePrefersReducedMotion();
@@ -142,12 +143,29 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
   useEffect(() => {
     if (phone !== null) sceneStore.set({ deferred: staticHero, deferredAuto: autoCapable === true, bootWaits3d: loadInBoot });
   }, [phone, staticHero, autoCapable, loadInBoot]);
-  // Phones: the boot ended before the 3D was ready (cap hit, or no boot), so the still is on
-  // screen. The 3D then replaces it in the settled pose instead of replaying the intro over it.
+  // The still: a capture of the scene's first settled frame (scripts/capture-hero-still.mjs). It
+  // shows while the 3D isn't there (boot skipped, the phone cap, low-end phones, a slow warm-up
+  // after the boot) and as the no-WebGL fallback. Whenever it has been on screen, the 3D starts
+  // settled (introSettled), i.e. on exactly that frame, and the cross-fade is invisible. After a
+  // boot the 3D normally plays its intro on an empty stage; the still only steps in if the warm-up
+  // runs past STILL_GRACE_MS (0 on phones, whose boot already waited for the 3D).
   const bootDone = useSceneState((s) => s.bootDone);
+  const [graceOver, setGraceOver] = useState(false);
   useEffect(() => {
-    if (phone === true && bootDone && !sceneStore.get().sceneReady) sceneStore.set({ introSettled: true });
-  }, [phone, bootDone]);
+    if (!bootDone || ready) return;
+    // Too late once the intro has started (it plays from empty; the still must not appear over it).
+    const id = window.setTimeout(() => !sceneStore.get().introStarted && setGraceOver(true), phone ? 0 : STILL_GRACE_MS);
+    return () => window.clearTimeout(id);
+  }, [bootDone, ready, phone]);
+  const stillWanted = !STILL_CAPTURE && (bootRan !== true || staticHero || graceOver);
+  // The canvas draws its first real frame (sceneStore.framesShown; see FrameGate) and it is the
+  // same picture as the still, which goes in that moment (no fade: both at once would add the
+  // glow twice).
+  const framesShown = useSceneState((s) => s.framesShown);
+  const stillShown = failed || (!framesShown && stillWanted);
+  useEffect(() => {
+    if (STILL_CAPTURE || (stillShown && !failed && !sceneStore.get().introStarted)) sceneStore.set({ introSettled: true });
+  }, [stillShown, failed]);
 
   // Stop the render loop while neither the hero nor Deployments (where the minis land) is visible.
   useEffect(() => {
@@ -197,6 +215,7 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
     // status row, which sits just below it (outside the 3D frame, so the cluster never covers it).
     <div
       ref={ref}
+      data-hero-stage
       className={cn(
         "relative mx-auto aspect-square w-full max-w-[34rem] lg:aspect-auto lg:h-[clamp(19rem,calc(100svh-10.5rem),38rem)] lg:max-w-none lg:self-start",
         // Below lg the stage sits between the name and the pitch (Hero.tsx); on phones it runs
@@ -205,25 +224,15 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
       )}
     >
       <div className="relative h-full w-full">
-        <div className={cn("absolute inset-0 transition-opacity duration-700", ready && "opacity-0")}>
-          <div className="h-full w-full max-md:pointer-coarse:hidden">{fallback}</div>
-          {/* A still of the live scene (captured from the mobile canvas): phones, until 3D is asked for */}
-          <Image
-            src={site.hero.staticImage.src}
-            alt={site.hero.staticImage.alt}
-            width={816}
-            height={816}
-            sizes="(max-width: 767px) 92vw, 34rem"
-            className="hidden h-full w-full object-contain max-md:pointer-coarse:block"
-            style={maskStyle(EDGE_FADE)}
-          />
-        </div>
+        <HeroStill shown={stillShown} />
         {/* Status row + Chaos Monkey: inside the stage's bottom below lg; lg+ just under the stage
             (the fixed canvas is masked there, so the cluster never draws over the button) */}
         <div className="absolute inset-x-0 bottom-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 lg:top-full lg:bottom-auto lg:mt-1.5">
           <p
             className={cn(
-              "font-mono text-[0.68rem] whitespace-nowrap transition-colors",
+              // Room for the longest steady label ("[ OK ] 13/13 nodes ready"), so the row doesn't
+              // re-wrap (moving the Chaos button) when "pulling 3D layers…" turns into it.
+              "min-w-[22ch] text-center font-mono text-[0.68rem] whitespace-nowrap transition-colors lg:min-w-[24ch]",
               down > 0 ? "text-warning" : clusterReady || !ready ? "text-faint" : "text-cyan",
             )}
             // The Chaos Monkey log announces the run; don't also announce every count change here.
@@ -278,5 +287,74 @@ export function HeroStage({ fallback }: { fallback: ReactNode }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Desktop: after a boot, how long the stage may stay empty before the still steps in (ms). */
+const STILL_GRACE_MS = 1500;
+
+const STILL_ALT = site.hero.staticImage.alt;
+
+/**
+ * The still, art-directed: lg+ gets the desktop capture placed in the camera's frame (the stage
+ * plus its bleed) with the camera's own fit rule (STILL_FIT: fixed horizontal FOV, clamped vertical
+ * FOV), so it lines up with the 3D at any window size; below lg the square mobile capture fills the
+ * stage with the canvas' edge fade. Pure CSS (container units): right from the server HTML.
+ * Two layers rebuild the canvas exactly: the shade darkens the page by the canvas' alpha, the light
+ * ADDS its colour (plus-lighter), so the glow keeps the brightness a straight-alpha image clips.
+ */
+function HeroStill({ shown }: { shown: boolean }) {
+  const frame = { x: `${-FRAME_BLEED.x * 100}%`, y: `${-FRAME_BLEED.y * 100}%` };
+  return (
+    <div
+      aria-hidden={!shown}
+      // No opacity on this wrapper: below 1 it becomes an isolated group, and the light layer would
+      // add onto the wrapper's own (black) content instead of the page: a dark square mid-fade.
+      // Each layer fades by itself.
+      className="absolute inset-0 [container-type:size] lg:inset-x-(--frame-x) lg:inset-y-(--frame-y)"
+      style={
+        {
+          "--frame-x": frame.x,
+          "--frame-y": frame.y,
+          "--still-w": `clamp(${STILL_FIT.minH * 100}cqh, 100cqw, ${STILL_FIT.maxH * 100}cqh)`,
+          "--edge-fade": EDGE_FADE,
+        } as CSSProperties
+      }
+    >
+      <StillLayer layer="shade" alt={STILL_ALT} shown={shown} />
+      <StillLayer layer="light" alt="" shown={shown} className="mix-blend-screen supports-[mix-blend-mode:plus-lighter]:mix-blend-plus-lighter" />
+    </div>
+  );
+}
+
+function StillLayer({ layer, alt, shown, className }: { layer: "shade" | "light"; alt: string; shown: boolean; className?: string }) {
+  const { mobile, desktop } = site.hero.staticImage;
+  // Served as captured (sized WebP): the optimizer would only re-encode them, and its cache keeps
+  // serving an old capture under the same URL after a re-capture.
+  const { props: img } = getImageProps({ alt, src: mobile[layer], width: mobile.width, height: mobile.height, unoptimized: true });
+  return (
+    <picture>
+      {desktop.map((band) => (
+        <source
+          key={band.minHeight}
+          media={band.minHeight > 0 ? `(min-width: 1024px) and (min-height: ${band.minHeight}px)` : "(min-width: 1024px)"}
+          srcSet={band[layer]}
+          width={band.width}
+          height={band.height}
+        />
+      ))}
+      {/* eslint-disable-next-line jsx-a11y/alt-text -- alt comes from getImageProps */}
+      <img
+        {...img}
+        className={cn(
+          "absolute inset-0 h-full w-full object-contain max-lg:[mask-image:var(--edge-fade)] max-lg:[mask-composite:intersect] max-lg:[-webkit-mask-image:var(--edge-fade)] max-lg:[-webkit-mask-composite:source-in]",
+          "lg:inset-auto lg:top-1/2 lg:left-1/2 lg:h-auto lg:w-(--still-w) lg:max-w-none lg:-translate-x-1/2 lg:-translate-y-1/2",
+          // Fades in (the grace path), but leaves at once: the canvas above shows the very same frame,
+          // and a fade would add the glow twice (still + canvas) for half a second.
+          shown ? "transition-opacity duration-500" : "opacity-0",
+          className,
+        )}
+      />
+    </picture>
   );
 }

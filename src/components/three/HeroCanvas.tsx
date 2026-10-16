@@ -1,18 +1,21 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSceneState } from "@/hooks/useSceneState";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { STILL_CAPTURE } from "@/lib/stillCapture";
 import { sceneStore } from "@/lib/sceneStore";
 import { startAssetLoading } from "./assets";
 import { installThreeConsoleFilter } from "./consoleFilter";
 import { isSoftwareRenderer } from "@/lib/webglSupport";
+import { preloadEnvironment } from "./Lighting";
 import { precompile } from "./precompile";
 import { Scene } from "./Scene";
 
 // Runs when this lazy chunk evaluates — model downloads start before React even mounts the canvas.
 installThreeConsoleFilter();
 startAssetLoading();
+preloadEnvironment();
 
 interface Props {
   mobile: boolean;
@@ -34,13 +37,15 @@ export default function HeroCanvas({ mobile, reducedMotion, drop, active }: Prop
   const bootDone = useSceneState((s) => s.bootDone);
   // Device pixel ratio after the pixel budget (PixelBudget); starts at the plain range.
   const [dpr, setDpr] = useState<number | null>(null);
+  // Capture mode (?still): the loop stops at the first visible frame and must stay stopped.
+  const [captured, setCaptured] = useState(false);
   return (
     <Canvas
       // `flat` = no tone mapping: neon stays saturated; bloom provides the glow.
       flat
       // R3F re-applies this prop on every render, so the budgeted value has to be the prop itself.
       dpr={dpr ?? (mobile ? DPR_MOBILE : DPR_DESKTOP)}
-      frameloop={active && warm && bootDone ? "always" : "never"}
+      frameloop={active && warm && bootDone && !captured ? "always" : "never"}
       gl={{ antialias: !mobile, alpha: true, powerPreference: "high-performance" }}
       camera={{ position: [0, 6.9, 12.8], fov: 32, near: 0.1, far: 60 }}
       aria-hidden="true"
@@ -57,6 +62,8 @@ export default function HeroCanvas({ mobile, reducedMotion, drop, active }: Prop
       <Suspense fallback={null}>
         <Scene mobile={mobile} reducedMotion={reducedMotion} drop={drop} />
         <ReadySignal onWarm={setWarm} />
+        <FrameGate />
+        {STILL_CAPTURE && <StopAtFirstVisibleFrame onStop={setCaptured} />}
       </Suspense>
       <PixelBudget maxPixels={mobile ? MOBILE_PIXELS : DESKTOP_PIXELS} maxDpr={(mobile ? DPR_MOBILE : DPR_DESKTOP)[1]} onDpr={setDpr} />
     </Canvas>
@@ -118,5 +125,57 @@ function ReadySignal({ onWarm }: { onWarm: (warm: true) => void }) {
       cancelAnimationFrame(raf);
     };
   }, [gl, scene, camera, onWarm]);
+  return null;
+}
+
+/** The first frame that reaches the screen (see FrameGate / framesShown). */
+const FIRST_VISIBLE_FRAME = 2;
+
+/**
+ * The very first frame comes out opaque and dark (post-processing not settled yet): it is wiped to
+ * transparent before it is presented, and framesShown flags the first real one. The canvas is
+ * never hidden for this: a canvas that was hidden is only composited again once it presents a new
+ * frame, which left a frame or two with neither the still nor the 3D (measured).
+ */
+function FrameGate() {
+  const n = useRef(0);
+  useFrame(({ gl }) => {
+    n.current++;
+    if (n.current < FIRST_VISIBLE_FRAME) {
+      gl.setRenderTarget(null);
+      gl.clear(true, true, true); // the canvas' clear colour is transparent (alpha: true)
+    } else if (n.current === FIRST_VISIBLE_FRAME) sceneStore.set({ framesShown: true });
+  }, 3);
+  return null;
+}
+
+/** Capture mode (`?still`): stop at the first visible frame and hand it to the script (raw pixels + page rect). */
+function StopAtFirstVisibleFrame({ onStop }: { onStop: (stopped: true) => void }) {
+  const setFrameloop = useThree((s) => s.setFrameloop);
+  const n = useRef(0);
+  useFrame(({ gl }) => {
+    // The first frame anyone sees (FrameGate), i.e. the one the 3D takes over from the still with.
+    if (++n.current < FIRST_VISIBLE_FRAME) return;
+    // Right away (before the next rAF), and through the prop so a re-render keeps it stopped.
+    setFrameloop("never");
+    onStop(true);
+    // Read in the same frame it was drawn (the drawing buffer isn't preserved after that), raw:
+    // the buffer is premultiplied, and the glow is light ADDED over the page (colour > alpha),
+    // which an ordinary (straight-alpha) PNG export clips. Rows are bottom-up.
+    const ctx = gl.getContext();
+    const w = ctx.drawingBufferWidth;
+    const h = ctx.drawingBufferHeight;
+    const px = new Uint8Array(w * h * 4);
+    gl.setRenderTarget(null);
+    ctx.readPixels(0, 0, w, h, ctx.RGBA, ctx.UNSIGNED_BYTE, px);
+    let bin = "";
+    for (let i = 0; i < px.length; i += 0x8000) bin += String.fromCharCode(...px.subarray(i, i + 0x8000));
+    const r = gl.domElement.getBoundingClientRect();
+    (window as unknown as { __stillFrame: unknown }).__stillFrame = {
+      raw: btoa(bin),
+      size: { width: w, height: h },
+      rect: { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height },
+    };
+  }, 3);
   return null;
 }

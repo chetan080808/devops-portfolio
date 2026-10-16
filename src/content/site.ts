@@ -63,8 +63,17 @@ export const site: SiteContent = {
       { label: "cloud", value: "AWS" },
     ],
     staticImage: {
-      src: "/hero/whale-cluster-mobile.webp",
       alt: "A low-poly whale carrying three containers swims above a glowing hexagonal cluster with a ship's wheel.",
+      // Captures of the 3D scene's first visible settled frame (scripts/capture-hero-still.mjs),
+      // two layers each: shade (black + the canvas' alpha) and light (its colour, added on top)
+      mobile: { shade: "/hero/whale-cluster-mobile-shade.webp", light: "/hero/whale-cluster-mobile-light.webp", width: 585, height: 585 },
+      // Desktop: one capture per window-height band (the frame scales with the height, the glow
+      // doesn't), tallest band first; `minHeight` = smallest window height (CSS px) it serves.
+      desktop: [
+        { minHeight: 740, shade: "/hero/whale-cluster-desktop-900-shade.webp", light: "/hero/whale-cluster-desktop-900-light.webp", width: 635, height: 693 },
+        { minHeight: 590, shade: "/hero/whale-cluster-desktop-680-shade.webp", light: "/hero/whale-cluster-desktop-680-light.webp", width: 635, height: 583 },
+        { minHeight: 0, shade: "/hero/whale-cluster-desktop-495-shade.webp", light: "/hero/whale-cluster-desktop-495-light.webp", width: 525, height: 373 },
+      ],
     },
     scrollHint: "Scroll to explore my work",
   },

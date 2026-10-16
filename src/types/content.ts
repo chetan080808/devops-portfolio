@@ -158,7 +158,8 @@ export interface SiteContent {
     /** value: null renders "—" until you fill it in */
     stats: { label: string; value: string | null }[];
     /** Phones (and no-GPU browsers) show a still of the 3D scene instead of loading it */
-    staticImage: { src: string; alt: string };
+    /** Stills of the scene's first settled frame: stand-in until the 3D takes over (and no-WebGL fallback) */
+    staticImage: { alt: string; mobile: StillImage; desktop: (StillImage & { minHeight: number })[] };
     /** Hint at the bottom of the hero (desktop) */
     scrollHint: string;
   };
@@ -213,4 +214,14 @@ export interface SiteContent {
   };
   dashboard: DashboardPanel[];
   socials: SocialLink[];
+}
+
+/** A still of the 3D canvas as two layers: page × (1 − alpha) + premultiplied colour */
+export interface StillImage {
+  /** Black with the canvas' alpha (normal blending) */
+  shade: string;
+  /** The canvas' premultiplied colour on black (added with mix-blend-mode: plus-lighter) */
+  light: string;
+  width: number;
+  height: number;
 }

@@ -157,7 +157,7 @@ export interface CameraKey {
  * share of the hero column at every window size; vertical FOV is derived from the aspect and
  * clamped so short, wide screens never crop the cluster or the whale.
  */
-export const CAMERA_FIT = { hfov: 46, minVfov: 33, maxVfov: 50 };
+export { CAMERA_FIT } from "../cameraFit";
 
 /**
  * Phones / tablets (canvas inside the stage): the desktop composition leaves most of the stage
