@@ -1,7 +1,18 @@
+# The AMI's architecture follows the instance type (t4g = Graviton/arm64, t3 = x86_64), so going
+# back is just `instance_type` (see docs/DECISIONS.md D-53, rollback).
+data "aws_ec2_instance_type" "node" {
+  instance_type = var.instance_type
+}
+
+locals {
+  node_arch = contains(data.aws_ec2_instance_type.node.supported_architectures, "arm64") ? "arm64" : "x86_64"
+}
+
 # Latest Amazon Linux 2023 at first apply. ignore_changes keeps a new AMI release from replacing
-# the running server; move to a newer AMI deliberately (terraform apply -replace).
+# the running server; move to a newer AMI deliberately (terraform apply -replace). Changing the
+# architecture also needs -replace: an x86_64 disk can't boot a Graviton instance.
 data "aws_ssm_parameter" "al2023" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${local.node_arch}"
 }
 
 resource "aws_instance" "node" {

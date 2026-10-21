@@ -25,9 +25,9 @@ variable "public_subnet_cidr" {
 }
 
 variable "instance_type" {
-  description = "2 vCPU / 2 GiB: enough for k3s + Traefik + two Next.js pods."
+  description = "Graviton (arm64), 2 vCPU / 4 GiB: same price as a t3.small in ap-south-1, room for Phase 9 (D-53). Rollback: t3.small."
   type        = string
-  default     = "t3.small"
+  default     = "t4g.medium"
 }
 
 variable "root_volume_gb" {
