@@ -15,16 +15,17 @@ const READY_HOLD = 380;
 /** Measured from first paint: stop waiting for assets; the scene fades in on its own once ready. */
 const CAP_MS = 2900;
 /**
- * Phones that load the 3D during the boot wait for the whole warm-up (sceneReady), up to this
- * (from first paint). Past it the still shows and the 3D comes in later, settled (HeroStage).
+ * Boots that load the 3D (desktop, capable phones) wait for the whole warm-up (sceneReady), up to
+ * this (from first paint), so the intro plays right after the exit. Past it the still shows and
+ * the 3D comes in later, settled (HeroStage).
  */
-const PHONE_CAP_MS = 8000;
+const WAIT_3D_CAP_MS = 8000;
 
 /**
  * Drives the boot log on a clock that starts at first paint (set by BootGate), so loading,
- * typing and log lines all run in parallel with hydration. Exits once every file has
- * downloaded (shader warm-up finishes behind the fade; the intro only starts on the first
- * rendered frame) or at the time cap. `active` is false when the gate skipped the intro.
+ * typing and log lines all run in parallel with hydration. Exits once the 3D is warmed up
+ * (bootWaits3d: desktop, capable phones) or every file has downloaded (otherwise), or at the time
+ * cap. `active` is false when the gate skipped the intro.
  */
 export function useBootTimeline(active: boolean, onLeave: () => void) {
   const { command, lines, readyLine } = site.boot;
@@ -97,7 +98,7 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
       // Failure first: on a software-only GPU the files still download, but no 3D will follow.
       if (s.failed) finish("failed");
       else if (s.sceneReady) finish("ready");
-      // Phones loading the 3D during the boot wait for the warm-up too (PHONE_CAP_MS).
+      // Boots that load the 3D wait for the warm-up too (WAIT_3D_CAP_MS).
       else if (s.bootWaits3d) return;
       else if (assetsDownloaded(s)) finish("ready");
       else if (s.deferred) finish("deferred");
@@ -118,8 +119,8 @@ export function useBootTimeline(active: boolean, onLeave: () => void) {
       capReached = true;
       if (pullingShown) finish("timeout");
     };
-    // HeroStage decides bootWaits3d right after hydration; read it when the desktop cap comes up.
-    after(CAP_MS - now, () => (sceneStore.get().bootWaits3d ? after(PHONE_CAP_MS - elapsed(), onCap) : onCap()));
+    // HeroStage decides bootWaits3d right after hydration; read it when the short cap comes up.
+    after(CAP_MS - now, () => (sceneStore.get().bootWaits3d ? after(WAIT_3D_CAP_MS - elapsed(), onCap) : onCap()));
 
     return () => {
       cancelled = true;

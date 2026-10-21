@@ -93,14 +93,16 @@ export function HeroStage() {
   const [want3d, setWant3d] = useState(false);
   // null until known (client only): capable phones load the 3D themselves, no button.
   const autoCapable = useAutoCapable();
-  // Capable phone with the boot running: the 3D loads during the boot, which waits for it (up to
-  // the phone cap, useBootTimeline) and ends straight into the intro. Otherwise (boot skipped or
+  // Capable phone with the boot running: the 3D loads during the boot. Otherwise (boot skipped or
   // cut short) the still shows first and the 3D comes in later, settled.
   const bootRan = useBootRan();
   const loadInBoot = phone === true && autoCapable === true && bootRan === true;
   const want = want3d || loadInBoot;
   const staticHero = phone === true && !want;
   const show3d = (phone === false || want) && !failed;
+  // Desktop, and phones loading the 3D in the boot: the boot waits for the whole warm-up (up to
+  // WAIT_3D_CAP_MS, useBootTimeline) and ends straight into the intro.
+  const bootWaits3d = bootRan === true && (phone === false || loadInBoot);
   useEffect(() => {
     if (phone !== true || autoCapable !== true || bootRan !== false) return;
     // Text and still are up at once; the 3D starts AUTO_3D.delayMs after load, at a quiet moment
@@ -141,31 +143,34 @@ export function HeroStage() {
     };
   }, [phone, autoCapable, bootRan]);
   useEffect(() => {
-    if (phone !== null) sceneStore.set({ deferred: staticHero, deferredAuto: autoCapable === true, bootWaits3d: loadInBoot });
-  }, [phone, staticHero, autoCapable, loadInBoot]);
+    if (phone !== null) sceneStore.set({ deferred: staticHero, deferredAuto: autoCapable === true, bootWaits3d });
+  }, [phone, staticHero, autoCapable, bootWaits3d]);
   // The still: a capture of the scene's first settled frame (scripts/capture-hero-still.mjs). It
   // shows while the 3D isn't there (boot skipped, the phone cap, low-end phones, a slow warm-up
   // after the boot) and as the no-WebGL fallback. Whenever it has been on screen, the 3D starts
   // settled (introSettled), i.e. on exactly that frame, and the cross-fade is invisible. After a
-  // boot the 3D normally plays its intro on an empty stage; the still only steps in if the warm-up
-  // runs past STILL_GRACE_MS (0 on phones, whose boot already waited for the 3D).
+  // boot the 3D is normally ready and plays its intro; the still only steps in if the boot ended
+  // without it (the wait cap, or Skip).
   const bootDone = useSceneState((s) => s.bootDone);
-  const [graceOver, setGraceOver] = useState(false);
+  const [bootEndedEarly, setBootEndedEarly] = useState(false);
   useEffect(() => {
     if (!bootDone || ready) return;
     // Too late once the intro has started (it plays from empty; the still must not appear over it).
-    const id = window.setTimeout(() => !sceneStore.get().introStarted && setGraceOver(true), phone ? 0 : STILL_GRACE_MS);
+    const id = window.setTimeout(() => !sceneStore.get().introStarted && setBootEndedEarly(true), 0);
     return () => window.clearTimeout(id);
-  }, [bootDone, ready, phone]);
-  const stillWanted = !STILL_CAPTURE && (bootRan !== true || staticHero || graceOver);
+  }, [bootDone, ready]);
+  const stillWanted = !STILL_CAPTURE && (bootRan !== true || staticHero || bootEndedEarly);
   // The canvas draws its first real frame (sceneStore.framesShown; see FrameGate) and it is the
   // same picture as the still, which goes in that moment (no fade: both at once would add the
   // glow twice).
   const framesShown = useSceneState((s) => s.framesShown);
   const stillShown = failed || (!framesShown && stillWanted);
+  // Decided only once the boot and device are known: the hydration render still has the server's
+  // answer (both null, still shown), which would mark every visit settled and skip the intro.
+  const known = bootRan !== null && phone !== null;
   useEffect(() => {
-    if (STILL_CAPTURE || (stillShown && !failed && !sceneStore.get().introStarted)) sceneStore.set({ introSettled: true });
-  }, [stillShown, failed]);
+    if (STILL_CAPTURE || (known && stillShown && !failed && !sceneStore.get().introStarted)) sceneStore.set({ introSettled: true });
+  }, [known, stillShown, failed]);
 
   // Stop the render loop while neither the hero nor Deployments (where the minis land) is visible.
   useEffect(() => {
@@ -289,9 +294,6 @@ export function HeroStage() {
     </div>
   );
 }
-
-/** Desktop: after a boot, how long the stage may stay empty before the still steps in (ms). */
-const STILL_GRACE_MS = 1500;
 
 const STILL_ALT = site.hero.staticImage.alt;
 

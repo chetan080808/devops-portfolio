@@ -186,7 +186,7 @@ function Screen({ command, log, pulling, onSkip }: { command: string; log: LogLi
   );
 }
 
-/** The live line: pulling the files, then (phones, which wait for it) warming up the shaders. */
+/** The live line: pulling the files, then (boots that wait for the 3D) warming up the shaders. */
 function PullLine() {
   const loaded = useSceneState((s) => s.assetsLoaded);
   const total = useSceneState((s) => s.assetsTotal);

@@ -22,8 +22,8 @@ export interface SceneState {
   deferred: boolean;
   /** …and it will load by itself once the page is idle (capable phone), vs only on request */
   deferredAuto: boolean;
-  /** Capable phone with the boot running: the 3D loads during the boot and the boot waits for it
-   *  (sceneReady, capped at PHONE_CAP_MS) instead of ending on the downloads */
+  /** The boot is running and loads the 3D (desktop, capable phone): it waits for it (sceneReady,
+   *  capped at WAIT_3D_CAP_MS) instead of ending on the downloads */
   bootWaits3d: boolean;
   /** Shader warm-up steps done / planned (precompile.ts); 0 / 0 until it starts */
   compileDone: number;
@@ -89,7 +89,7 @@ export const assetsDownloaded = (s: SceneState) => s.chunkLoaded && s.assetsTota
 
 /**
  * Chunk download counts for 20%, model files for the other 80%. When the boot waits for the 3D
- * (phones), the shader warm-up is part of it: chunk 15%, models 45%, warm-up 40%.
+ * (desktop, capable phones), the shader warm-up is part of it: chunk 15%, models 45%, warm-up 40%.
  */
 function computeProgress(s: SceneState): number {
   if (s.sceneReady) return 1;
