@@ -1,5 +1,5 @@
 # The AMI's architecture follows the instance type (t4g = Graviton/arm64, t3 = x86_64), so going
-# back is just `instance_type` (see docs/DECISIONS.md D-53, rollback).
+# back is just `instance_type` (rollback: t3.small + -replace; the image is multi-arch).
 data "aws_ec2_instance_type" "node" {
   instance_type = var.instance_type
 }

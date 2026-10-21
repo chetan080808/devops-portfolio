@@ -25,9 +25,9 @@ variable "public_subnet_cidr" {
 }
 
 variable "instance_type" {
-  description = "Graviton (arm64), 2 vCPU / 4 GiB: same price as a t3.small in ap-south-1, room for Phase 9 (D-53). Rollback: t3.small."
+  description = "Graviton (arm64), 2 vCPU / 2 GiB, same size as the t3.small it replaces (Phase 9 runs on demand only). Rollback: t3.small."
   type        = string
-  default     = "t4g.medium"
+  default     = "t4g.small"
 }
 
 variable "root_volume_gb" {
