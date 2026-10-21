@@ -783,3 +783,34 @@ Updated after every checkpoint.
     (1280x495) the live glow is slightly stronger than the still's (resolution-dependent bloom); no
     pose change anywhere.
 - Re-run both scripts whenever the lights, the scene's look, the settled pose or the framing change.
+
+### D-53 The intro plays after every boot: the boot waits for the 3D on desktop too
+
+- **Context:** after D-52 the whale intro never played: every visit started in the settled pose.
+  Diagnosed on the live site (fresh profile, `?boot`, desktop 1440x900 and phone emulation 390 px)
+  by logging the boot attribute, the still's visibility, WebGL context creation and the first draw
+  call, plus screenshots after the exit. Two causes:
+  1. **Hydration (every boot visit, desktop and phone):** HeroStage reads "did the boot run?" with
+     `useSyncExternalStore`, whose server snapshot is `null`. The hydration render therefore
+     computed `stillWanted = bootRan !== true` = true, and the effect that marks the start settled
+     (`introSettled`, sticky) ran in that commit, before the client value (`true`) re-rendered.
+  2. **Desktop grace rule:** the desktop boot ended when the files were downloaded; on a cold
+     shader cache the warm-up took ~1.9 s more, past the 1.5 s grace, so the still stepped in.
+- **Options:** keep the grace rule and only fix (1) (cold first visits on desktop still settle);
+  make the desktop boot wait for the 3D like phones (D-41), with the same 8 s cap.
+- **Choice:** (1) the settled decision is made only once the boot and device are known
+  (`known` in HeroStage); (2) `bootWaits3d` = boot running and the 3D loading in it (desktop, or
+  a capable phone); one cap `WAIT_3D_CAP_MS` = 8 s; the 1.5 s grace is gone: the still appears
+  after a boot only if it ended without the 3D (the cap, Skip, or the gate's safety net).
+  Repeat visits in the session keep the settled start (owner's choice, option A).
+- **Measured (local prod build, probe + screenshots):** desktop cold first visit: boot exit
+  3.0 -> 5.4 s, first 3D frame 30 ms after the exit, intro plays; warm 2.9 s. Phone 1x: exit
+  3.8 s, intro. Phone 4x CPU: ready just before the cap (exit 8.5 s), intro. 5x: cap hit at
+  8.7 s, still at once, 3D settled at 11.5 s. 6x: hydration later than the gate's 4.5 s safety
+  net -> still, settled. Repeat visits: still, then settled (unchanged).
+- **Lighthouse (local prod, 4 runs each, before -> after):** desktop Perf 73-88 -> 87-96
+  (TBT 259-601 -> 155-301 ms, Speed Index 1459-2440 -> 794-912 ms, CLS 0.009 -> 0); mobile
+  49-55 -> 45-51 (TBT 1057-1619 -> 1204-1487 ms, LCP ~6.0-6.8 s both); A11y / BP / SEO 100.
+  The desktop gain is Lighthouse seeing a still boot screen during its window, not a faster
+  site: the real cost is the longer desktop boot on cold first visits (+~2.4 s). Mobile loads the
+  same way as before; the small drop is within run-to-run noise or the intro now rendering.
